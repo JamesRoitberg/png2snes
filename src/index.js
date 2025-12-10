@@ -1,0 +1,130 @@
+import path from "node:path";
+import fs from "node:fs";
+import { loadPng } from "./imageLoader.js";
+import { buildPalette } from "./palette.js";
+import { sliceTiles } from "./tiles.js";
+import { dedupeTiles } from "./dedup.js";
+import { buildTilemap, buildMetatileMap } from "./map.js";
+import { writeChr, writePal, writeGpl, writeTilesetPreview, writeMetatileJson } from "./exporters.js";
+
+export async function runPng2Snes(imagePath, options) {
+  const inputPath = path.resolve(imagePath);
+  const outDir = options.outDir
+    ? path.resolve(options.outDir)
+    : path.dirname(inputPath);
+
+  if (!fs.existsSync(inputPath)) {
+    throw new Error(`Imagem não encontrada: ${inputPath}`);
+  }
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: True });
+  }
+
+  const baseName = path.basename(inputPath, path.extname(inputPath));
+  const outBase = path.join(outDir, baseName);
+
+  const tipo = (options.tipo || "bg").toLowerCase();
+  const bpp = Number(options.bpp || 4);
+
+  if (!["bg", "sprite"].includes(tipo)) {
+    throw new Error('Tipo inválido. Use "bg" ou "sprite".');
+  }
+  if (![2, 4, 8].includes(bpp)) {
+    throw new Error("bpp inválido, use 2, 4 ou 8.");
+  }
+
+  const [tileW, tileH] = parseSize(options.tileSize || "8x8");
+
+  const { width, height, pixels } = await loadPng(inputPath);
+
+  if (width % tileW !== 0 || height % tileH !== 0) {
+    throw new Error(
+      `Dimensões da imagem (${width}x${height}) não são múltiplas de ${tileW}x${tileH}.`
+    );
+  }
+
+  const maxColors = bpp === 2 ? 4 : bpp === 4 ? 16 * 8 : 256;
+  const paletteSource =
+    options.paleta ||
+    options.palette ||
+    options.pal ||
+    options.paletteFile ||
+    null;
+
+  const palette = await buildPalette({
+    pixels,
+    maxColors,
+    bpp,
+    paletteFile: paletteSource,
+    tipo,
+    palIndex: options.palIndex,
+    colorZero: options.colorZero !== false,
+  });
+
+  const tiles = sliceTiles({
+    pixels,
+    width,
+    height,
+    tileW,
+    tileH,
+    palette,
+  });
+
+  const dedupeMode = options.dedupe || "simple";
+  const { uniqueTiles, tileRefs } = dedupeTiles(tiles, dedupeMode);
+
+  const tilemap = buildTilemap({
+    width,
+    height,
+    tileW,
+    tileH,
+    tileRefs,
+    tipo,
+  });
+
+  const chrBuffer = writeChr(uniqueTiles, bpp);
+  const palBuffer = writePal(palette);
+  const gplText = writeGpl(palette, `${baseName} (png2snes)`);
+
+  fs.writeFileSync(`${outBase}.chr`, chrBuffer);
+  fs.writeFileSync(`${outBase}.map`, tilemap);
+  fs.writeFileSync(`${outBase}.pal`, palBuffer);
+  fs.writeFileSync(`${outBase}.gpl`, gplText, "utf-8");
+
+  const tilesetPngPath = `${outBase}-tileset.png`;
+  await writeTilesetPreview({
+    tiles: uniqueTiles,
+    palette,
+    outPath: tilesetPngPath,
+  });
+
+  if (options.metatile) {
+    const [metaW, metaH] = parseSize(options.metatile);
+    const metaJson = buildMetatileMap({
+      width,
+      height,
+      tileW,
+      tileH,
+      metaW,
+      metaH,
+      tileRefs,
+    });
+    writeMetatileJson(`${outBase}.meta.json`, metaJson);
+  }
+
+  console.log("[png2snes] OK:");
+  console.log("  CHR:", `${outBase}.chr`);
+  console.log("  MAP:", `${outBase}.map`);
+  console.log("  PAL:", `${outBase}.pal`);
+  console.log("  GPL:", `${outBase}.gpl`);
+  console.log("  TILESET PNG:", tilesetPngPath);
+  if (options.metatile) {
+    console.log("  METATILES JSON:", `${outBase}.meta.json`);
+  }
+}
+
+function parseSize(str) {
+  const m = String(str).toLowerCase().match(/(\d+)x(\d+)/);
+  if (!m) throw new Error(`Formato de tamanho inválido: ${str}`);
+  return [Number(m[1]), Number(m[2])];
+}

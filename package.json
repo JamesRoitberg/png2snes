@@ -1,0 +1,20 @@
+{
+  "name": "png2snes",
+  "version": "0.1.0",
+  "description": "CLI para converter PNG em tiles, mapas e paletas no formato do SNES (bg e sprites).",
+  "bin": {
+    "png2snes": "bin/png2snes.js"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node bin/png2snes.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "inquirer": "^9.2.15",
+    "pngjs": "^7.0.0"
+  }
+}

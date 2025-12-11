@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import inquirer from "inquirer";
+import path from "node:path";
 import { runPng2Snes } from "../src/index.js";
 
 const program = new Command();
@@ -160,6 +161,32 @@ program
 
     try {
       await runPng2Snes(imagem, finalOpts);
+
+      const { wantsMerge } = await inquirer.prompt({
+        type: "confirm",
+        name: "wantsMerge",
+        message: "Deseja executar merge das partes (*-partN)?",
+        default: false
+      });
+
+      if (wantsMerge) {
+        const { mergeParts } = await import("../merge/mergeParts.js");
+
+        const baseDir = finalOpts.outDir
+          ? path.resolve(finalOpts.outDir)
+          : path.dirname(path.resolve(imagem));
+
+        const mergeInputDir = path.join(baseDir, "converted");
+        const mergeOutputDir = path.join(mergeInputDir, "final");
+
+        try {
+          const result = await mergeParts(mergeInputDir, mergeOutputDir);
+          console.log("[png2snes] Merge final gerado:");
+          console.log(result);
+        } catch (err) {
+          console.error("[png2snes] Erro no merge:", err.message);
+        }
+      }
     } catch (err) {
       console.error("[png2snes] Erro:", err.message);
       process.exitCode = 1;

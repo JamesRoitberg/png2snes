@@ -5,19 +5,33 @@ import { buildPalette } from "./palette.js";
 import { sliceTiles } from "./tiles.js";
 import { dedupeTiles } from "./dedup.js";
 import { buildTilemap, buildMetatileMap } from "./map.js";
-import { writeChr, writePal, writeGpl, writeTilesetPreview, writeMetatileJson } from "./exporters.js";
+import {
+  writeChr,
+  writePal,
+  writeGpl,
+  writeTilesetPreview,
+  writeMetatileJson
+} from "./exporters.js";
 
 export async function runPng2Snes(imagePath, options) {
   const inputPath = path.resolve(imagePath);
-  const outDir = options.outDir
+
+  // ============================================================
+  // 🔥 NOVO COMPORTAMENTO: gera sempre dentro de /converted
+  // ============================================================
+  const baseOutDir = options.outDir
     ? path.resolve(options.outDir)
     : path.dirname(inputPath);
 
+  const outDir = path.join(baseOutDir, "converted");
+
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+  // ============================================================
+
   if (!fs.existsSync(inputPath)) {
     throw new Error(`Imagem não encontrada: ${inputPath}`);
-  }
-  if (!fs.existsSync(outDir)) {
-    fs.mkdirSync(outDir, { recursive: True });
   }
 
   const baseName = path.basename(inputPath, path.extname(inputPath));
@@ -71,7 +85,7 @@ export async function runPng2Snes(imagePath, options) {
   });
 
   const dedupeMode = options.dedupe || "simple";
-  const { uniqueTiles, tileRefs } = dedupeTiles(tiles, dedupeMode);
+  const { uniqueTiles, tileRefs } = dedupeTiles(tiles, dedupeMode, tipo);
 
   const tilemap = buildTilemap({
     width,
@@ -113,6 +127,7 @@ export async function runPng2Snes(imagePath, options) {
   }
 
   console.log("[png2snes] OK:");
+  console.log("  OUT DIR:", outDir);
   console.log("  CHR:", `${outBase}.chr`);
   console.log("  MAP:", `${outBase}.map`);
   console.log("  PAL:", `${outBase}.pal`);

@@ -17,7 +17,7 @@ export async function runPng2Snes(imagePath, options) {
   const inputPath = path.resolve(imagePath);
 
   // ============================================================
-  // 🔥 NOVO COMPORTAMENTO: gera sempre dentro de /converted
+  //  NOVO COMPORTAMENTO: gera sempre dentro de /converted
   // ============================================================
   const baseOutDir = options.outDir
     ? path.resolve(options.outDir)
@@ -57,13 +57,21 @@ export async function runPng2Snes(imagePath, options) {
     );
   }
 
-  const maxColors = bpp === 2 ? 4 : bpp === 4 ? 16 * 8 : 256;
+  let maxColors;
+
+  if (tipo === "sprite") {
+    maxColors = bpp === 2 ? 4 : bpp === 4 ? 16 : 256;
+  } else {
+    maxColors = bpp === 2 ? 4 : bpp === 4 ? 16 * 8 : 256;
+  }
+
   const paletteSource =
     options.paleta ||
     options.palette ||
     options.pal ||
     options.paletteFile ||
-    null;
+    null
+  ;
 
   const palette = await buildPalette({
     pixels,
@@ -71,10 +79,16 @@ export async function runPng2Snes(imagePath, options) {
     bpp,
     paletteFile: paletteSource,
     tipo,
-    palIndex: options.palIndex,
+    palIndex: tipo === "sprite" ? undefined : options.palIndex,
     colorZero: options.colorZero !== false,
   });
 
+  if (tipo === "sprite") {
+    // Para sprite, pegamos APENAS a sub-paleta real (16 cores)
+    const start = palette.entries.length - palette.colorsPerSub;
+    palette.entries = palette.entries.slice(start);
+  }
+  
   const tiles = sliceTiles({
     pixels,
     width,
@@ -87,32 +101,41 @@ export async function runPng2Snes(imagePath, options) {
   const dedupeMode = options.dedupe || "simple";
   const { uniqueTiles, tileRefs } = dedupeTiles(tiles, dedupeMode, tipo);
 
-  const tilemap = buildTilemap({
-    width,
-    height,
-    tileW,
-    tileH,
-    tileRefs,
-    tipo,
-  });
+  let tilemap = null;
+
+  if (tipo !== "sprite") {
+    tilemap = buildTilemap({
+      width,
+      height,
+      tileW,
+      tileH,
+      tileRefs,
+      tipo,
+    });
+  }
 
   const chrBuffer = writeChr(uniqueTiles, bpp);
   const palBuffer = writePal(palette);
   const gplText = writeGpl(palette, `${baseName} (png2snes)`);
 
   fs.writeFileSync(`${outBase}.chr`, chrBuffer);
-  fs.writeFileSync(`${outBase}.map`, tilemap);
+  if (tilemap) {
+    fs.writeFileSync(`${outBase}.map`, tilemap);
+  }
   fs.writeFileSync(`${outBase}.pal`, palBuffer);
   fs.writeFileSync(`${outBase}.gpl`, gplText, "utf-8");
 
   const tilesetPngPath = `${outBase}-tileset.png`;
-  await writeTilesetPreview({
-    tiles: uniqueTiles,
-    palette,
-    outPath: tilesetPngPath,
-  });
+  
+  if (tipo !== "sprite") {
+    await writeTilesetPreview({
+      tiles: uniqueTiles,
+      palette,
+      outPath: tilesetPngPath,
+    });
+  }
 
-  if (options.metatile) {
+  if (options.metatile && tipo !== "sprite") {
     const [metaW, metaH] = parseSize(options.metatile);
     const metaJson = buildMetatileMap({
       width,
@@ -129,11 +152,15 @@ export async function runPng2Snes(imagePath, options) {
   console.log("[png2snes] OK:");
   console.log("  OUT DIR:", outDir);
   console.log("  CHR:", `${outBase}.chr`);
-  console.log("  MAP:", `${outBase}.map`);
+  if (tilemap) {
+    console.log("  MAP:", `${outBase}.map`);
+  }
   console.log("  PAL:", `${outBase}.pal`);
   console.log("  GPL:", `${outBase}.gpl`);
-  console.log("  TILESET PNG:", tilesetPngPath);
-  if (options.metatile) {
+  if (tipo !== "sprite") {
+    console.log("  TILESET PNG:", tilesetPngPath);
+  }
+  if (options.metatile && tipo !== "sprite") {
     console.log("  METATILES JSON:", `${outBase}.meta.json`);
   }
 }

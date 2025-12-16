@@ -28,8 +28,10 @@ program
 
     const answers = {};
 
-    if (!opts.tipo && opts.interactive) {
-      questions.push({
+    let tipo = (opts.tipo || "").toLowerCase();
+
+    if (!tipo && opts.interactive) {
+      const { tipo: chosenTipo } = await inquirer.prompt({
         type: "list",
         name: "tipo",
         message: "Tipo de conversão:",
@@ -38,9 +40,10 @@ program
           { name: "Sprite", value: "sprite" },
         ],
       });
-    } else {
-      answers.tipo = (opts.tipo || "").toLowerCase();
+      tipo = chosenTipo;
     }
+
+    answers.tipo = tipo;
 
     if (!opts.bpp && opts.interactive) {
       questions.push({
@@ -70,7 +73,7 @@ program
       answers.tileSize = opts.tileSize || "8x8";
     }
 
-    if (!opts.spriteSizes && opts.interactive) {
+    if (!opts.spriteSizes && opts.interactive && answers.tipo === "sprite") {
       questions.push({
         type: "list",
         name: "spriteSizes",
@@ -89,7 +92,7 @@ program
       answers.spriteSizes = opts.spriteSizes;
     }
 
-    if (typeof opts.palIndex === "undefined" && opts.interactive) {
+    if (typeof opts.palIndex === "undefined" && opts.interactive && (answers.tipo || opts.tipo) === "bg") {
       questions.push({
         type: "number",
         name: "palIndex",
@@ -101,7 +104,7 @@ program
       answers.palIndex = Number(opts.palIndex);
     }
 
-    if (typeof opts.dedupe === "undefined" && opts.interactive) {
+    if (typeof opts.dedupe === "undefined" && opts.interactive && answers.tipo === "bg") {
       questions.push({
         type: "list",
         name: "dedupe",
@@ -119,7 +122,7 @@ program
       answers.dedupe = opts.dedupe;
     }
 
-    if (!opts.metatile && opts.interactive) {
+    if (!opts.metatile && opts.interactive && answers.tipo === "bg") {
       questions.push({
         type: "confirm",
         name: "wantsMetatile",
@@ -131,7 +134,7 @@ program
     if (questions.length && opts.interactive) {
       const qAnswers = await inquirer.prompt(questions);
       Object.assign(answers, qAnswers);
-      if (answers.wantsMetatile && !opts.metatile) {
+      if (!opts.tileSize && opts.interactive && answers.tipo === "bg") {
         const { metatileSize } = await inquirer.prompt({
           type: "list",
           name: "metatileSize",
@@ -159,32 +162,62 @@ program
       metatile: answers.metatile || opts.metatile,
     };
 
+    if (finalOpts.tipo === "sprite") {
+      delete finalOpts.palIndex;
+    }
+
+    const MODE_RULES = {
+      sprite: {
+        generateMap: false,
+        allowDedupe: false,
+        askPaletteIndex: false,
+      },
+      bg: {
+        generateMap: true,
+        allowDedupe: true,
+        askPaletteIndex: true,
+      }
+    };
+
+    const mode = finalOpts.tipo;
+    const rules = MODE_RULES[mode];
+
+    if (!rules) {
+      throw new Error(`Tipo inválido: ${mode}`);
+    }
+
+    if (!rules.allowDedupe) {
+      finalOpts.dedupe = "none";
+    }
+
     try {
       await runPng2Snes(imagem, finalOpts);
 
-      const { wantsMerge } = await inquirer.prompt({
-        type: "confirm",
-        name: "wantsMerge",
-        message: "Deseja executar merge das partes (*-partN)?",
-        default: false
-      });
+      if (finalOpts.tipo === "bg") {
+        const { wantsMerge } = await inquirer.prompt({
+          type: "confirm",
+          name: "wantsMerge",
+          message: "Deseja executar merge das partes (*-partN)?",
+          default: false
+        });
 
-      if (wantsMerge) {
-        const { mergeParts } = await import("../merge/mergeParts.js");
+        if (wantsMerge) {
+          const { mergeParts } = await import("../merge/mergeParts.js");
 
-        const baseDir = finalOpts.outDir
-          ? path.resolve(finalOpts.outDir)
-          : path.dirname(path.resolve(imagem));
+          const baseDir = finalOpts.outDir
+            ? path.resolve(finalOpts.outDir)
+            : path.dirname(path.resolve(imagem));
 
-        const mergeInputDir = path.join(baseDir, "converted");
-        const mergeOutputDir = path.join(mergeInputDir, "final");
+          const mergeInputDir = path.join(baseDir, "converted");
+          const mergeOutputDir = path.join(mergeInputDir, "final");
 
-        try {
-          const result = await mergeParts(mergeInputDir, mergeOutputDir);
-          console.log("[png2snes] Merge final gerado:");
-          console.log(result);
-        } catch (err) {
-          console.error("[png2snes] Erro no merge:", err.message);
+          try {
+            const result = await mergeParts(mergeInputDir, mergeOutputDir);
+            console.log("[png2snes] Merge final gerado:");
+            console.log(result);
+          } catch (err) {
+            console.error("[png2snes] Erro no merge:", err.message);
+          }
         }
       }
     } catch (err) {

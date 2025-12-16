@@ -1,257 +1,186 @@
-📘 png2snes — Conversor PNG → Gráficos SNES / PNG to SNES Graphics Converter
-PT-BR
-O que é
+png2snes
 
-png2snes é uma ferramenta de linha de comando em Node.js que converte imagens PNG em arte SNES (tiles, mapas e paletas) organizados e prontos para uso em ROM hacks ou homebrew. 
-GitHub
+Ferramenta em Node.js para converter imagens PNG em dados binários compatíveis com o Super Nintendo (SNES), focada em ROM hacking, homebrew e desenvolvimento em Assembly 65816.
 
-Isso inclui:
+O png2snes gera arquivos prontos para uso real no hardware/emulador, respeitando as limitações e o funcionamento interno do SNES.
 
-Tiles SNES (.chr)
+✨ Principais recursos
 
-Tilemap SNES (.map)
+Conversão de PNG → CHR / PAL / MAP
 
-Paleta SNES (.pal)
+Suporte a SPRITES (OBJ) e BACKGROUND (BG), com pipelines separados
 
-Paleta GIMP (.gpl)
+Paletas no formato SNES BGR555
 
-Tileset de visualização (*-tileset.png)
+Geração de .gpl para edição no GIMP
 
-Meta dados opcionais (.meta.json)
-Tudo modular e configurável. 
-GitHub
+Deduplicação de tiles (BG)
 
-EN
-What it is
+Metatiles (BG)
 
-png2snes is a Node.js CLI tool that converts PNG images into SNES graphics (tiles, maps, and palettes) organized and ready for use in ROM hacks or homebrew.
+Modo interativo ou via flags
 
-It generates:
+Saída limpa, sem arquivos inúteis
 
-SNES tiles (.chr)
+📦 Instalação
+npm install -g png2snes
 
-SNES tilemap (.map)
 
-SNES palette (.pal)
+Ou via npx:
 
-GIMP palette (.gpl)
+npx png2snes imagem.png
 
-Tileset preview (*-tileset.png)
+🚀 Uso básico
+png2snes imagem.png
 
-Optional metadata (.meta.json)
-All modular and configurable. 
-GitHub
 
-PT-BR
-Instalação
+Se rodar sem flags, a ferramenta entra em modo interativo.
 
-Clone o repositório e instale:
+🎮 Modo SPRITE (OBJ)
 
-git clone https://github.com/JamesRoitberg/png2snes.git
-cd png2snes
-npm install
+O modo SPRITE é pensado para sprites reais do SNES, não para BG disfarçado.
 
+Comportamento do modo SPRITE
 
-Para usar globalmente:
+✔ Gera:
 
-npm link
+.chr — tiles 4bpp (32 bytes por tile)
 
+.pal — 16 cores exatas
 
-Ou direto com npx:
+.gpl — paleta limpa para GIMP
 
-npx png2snes ./imagem.png
+❌ Não gera:
 
-EN
-Installation
+.map
 
-Clone and install:
+preview de tileset
 
-git clone https://github.com/JamesRoitberg/png2snes.git
-cd png2snes
-npm install
+metatiles
 
+partes (partN)
 
-To install globally:
+merge
 
-npm link
+❌ Não pergunta:
 
+sub-paleta
 
-Or use with npx:
+deduplicação
 
-npx png2snes ./image.png
+opções de BG
 
-PT-BR
-Como funciona
+Regras técnicas (SPRITE)
 
-O programa:
+Sempre 1 única paleta
 
-Lê o PNG de entrada
+Sempre 16 cores
 
-Extrai a paleta
+Cor índice 0 = transparência
 
-Divide a imagem em tiles 8×8
+A escolha da sub-paleta OBJ (0–7) é feita no Assembly, não na ferramenta
 
-(Opcional) Deduplica tiles repetidos
+Exemplo
+png2snes scorpion.png --tipo sprite
 
-Gera:
 
-.chr (tiles)
+Arquivos gerados:
 
-.map (tilemap)
+scorpion.chr
+scorpion.pal
+scorpion.gpl
 
-.pal (paleta SNES)
 
-.gpl (paleta GIMP)
+Prontos para carregar via DMA em VRAM/CGRAM e usar via OAM.
 
-*-tileset.png (visualização)
+🧱 Modo BACKGROUND (BG)
 
-.meta.json (info extra)
+O modo BG é voltado para cenários, fundos e telas completas.
 
-Salva no diretório de saída escolhido.
+Comportamento do modo BG
 
-EN
-How it works
+✔ Gera:
 
-The program:
+.chr — tiles
 
-Loads the input PNG
+.map — tilemap SNES (16 bits por entrada)
 
-Extracts the palette
+.pal — múltiplas sub-paletas
 
-Splits the image into 8×8 tiles
+.gpl
 
-(Optional) Deduplicates repeated tiles
+preview de tileset
 
-Generates:
+metatiles (opcional)
 
-.chr (tiles)
+✔ Suporta:
 
-.map (tilemap)
+deduplicação de tiles
 
-.pal (SNES palette)
+divisão em partes
 
-.gpl (GIMP palette)
+merge final
 
-*-tileset.png (preview)
+🧩 Deduplicação (BG apenas)
 
-.meta.json (extra info)
+Disponível somente para BG:
 
-Saves everything in the output directory
+none — sem deduplicação
 
-PT-BR
-Uso (modo interativo)
-npx png2snes ./meu_sprite.png
+simple — tiles idênticos
 
+h — dedupe com flip horizontal
 
-O CLI entra no modo interativo se não houver flags:
+v — dedupe com flip vertical
 
-✔ Tipo (BG ou Sprite)?
-✔ Profundidade de bits (2bpp / 4bpp / 8bpp)?
-✔ Deduplicar tiles?
-✔ Pasta de saída?
+full — dedupe completo (H + V)
 
-EN
-Interactive usage
-npx png2snes ./my_sprite.png
+Sprites nunca usam dedupe, para manter previsibilidade de índices.
 
+🧱 Metatiles (BG apenas)
 
-Without flags the CLI runs interactively:
+Permite agrupar tiles em blocos maiores (ex: 16×16 ou 32×32), gerando um .meta.json auxiliar.
 
-✔ Type (BG or Sprite)?
-✔ Bit depth (2bpp / 4bpp / 8bpp)?
-✔ Deduplicate tiles?
-✔ Output folder?
+🔀 Merge de partes (BG apenas)
 
-PT-BR
-Uso sem interativo
+Quando o BG é dividido em partes (*-partN), a ferramenta pode unir tudo em um output final.
 
-Para ver todas as opções:
+O merge nunca é oferecido para sprites, pois sprites são sempre unidades únicas.
 
-npx png2snes --help
+⚙️ Opções principais
+Opção	Descrição
+`--tipo sprite	bg`
+`--bpp 2	4`
+`--tile-size 8x8	16x16`
+--sprite-sizes	Combo de tamanhos OBJ (SPRITE)
+--dedupe	Deduplicação (BG)
+--metatile	Gera metatiles (BG)
+--no-interactive	Usa apenas flags
+🧠 Filosofia do projeto
 
+SPRITE prioriza fidelidade e controle
+BG prioriza otimização e economia
 
-Exemplo sem prompts:
+O png2snes evita gerar arquivos ou opções que não fazem sentido no hardware real, mantendo o output:
 
-npx png2snes ./bg.png --bpp 4 --out ./build
+previsível
 
+correto
 
-Saída esperada:
+fácil de integrar no Assembly
 
-build/bg.chr
-build/bg.map
-build/bg.pal
-build/bg.gpl
-build/bg-tileset.png
+🕹️ Integração com Assembly SNES
 
-EN
-Non-interactive usage
+Os arquivos gerados podem ser usados diretamente com DMA:
 
-Check options:
+.chr → VRAM
 
-npx png2snes --help
+.pal → CGRAM
 
+.map → VRAM (BG)
 
-Example:
+A lógica de OAM, sub-paletas e prioridades é responsabilidade do código Assembly, como no SNES real.
 
-npx png2snes ./bg.png --bpp 4 --out ./build
+📄 Licença
 
-
-Expected output:
-
-build/bg.chr
-build/bg.map
-build/bg.pal
-build/bg.gpl
-build/bg-tileset.png
-
-PT-BR
-Dicas
-
-Use imagens indexadas para controle exato de paleta.
-
-A deduplicação reduz tamanho do .chr.
-
-A visualização tileset.png ajuda a checar se os tiles ficaram corretos.
-
-EN
-Tips
-
-Use indexed PNGs to control palette exactly.
-
-Deduplication reduces .chr size.
-
-The tileset.png preview helps check the tiles visually.
-
-PT-BR
-Estrutura do projeto
-bin/        # comando CLI
-src/        # lógica principal
-README.md   # documentação
-package.json
-
-EN
-Project layout
-bin/        # CLI entrypoint
-src/        # main logic
-README.md   # documentation
-package.json
-
-PT-BR
-Contribuições
-
-Quer melhorar, achar bugs ou adicionar recursos? Abra uma issue ou um pull request.
-
-EN
-Contributing
-
-Want to improve it, report bugs or add features? Open an issue or pull request.
-
-PT-BR
-Licença
-
-MIT.
-
-EN
-License
-
-MIT.
+MIT

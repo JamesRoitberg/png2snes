@@ -12,6 +12,8 @@ import {
   writeTilesetPreview,
   writeMetatileJson
 } from "./exporters.js";
+import { validateTiles } from "./validateTiles.js";
+
 
 export async function runPng2Snes(imagePath, options) {
   const inputPath = path.resolve(imagePath);
@@ -89,7 +91,7 @@ export async function runPng2Snes(imagePath, options) {
     palette.entries = palette.entries.slice(start);
   }
   
-  const tiles = sliceTiles({
+  const tilesData = sliceTiles({
     pixels,
     width,
     height,
@@ -98,8 +100,17 @@ export async function runPng2Snes(imagePath, options) {
     palette,
   });
 
+  // WARNING APENAS PARA BG
+  if (tipo === "bg") {
+    validateTiles({
+      tilesData,
+      palette,
+      bpp,
+    });
+  }
+
   const dedupeMode = options.dedupe || "simple";
-  const { uniqueTiles, tileRefs } = dedupeTiles(tiles, dedupeMode, tipo);
+  const { uniqueTiles, tileRefs } = dedupeTiles(tilesData, dedupeMode, tipo);
 
   let tilemap = null;
 

@@ -60,18 +60,20 @@ export async function buildPalette({
       throw new Error("Paleta deve ser .pal ou .txt");
     }
   } else {
-    // PNG indexado: coleta na ordem do GIMP
-    const seen = new Set();
-    for (const p of pixels) {
-      const key = `${p.r},${p.g},${p.b},${p.a}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
+    // PNG indexado: usar EXATAMENTE a paleta do PNG (PLTE)
+    if (!pixels.palette || !Array.isArray(pixels.palette)) {
+      throw new Error(
+        "PNG indexado esperado, mas a paleta não foi fornecida pelo loader."
+      );
+    }
+
+    for (const c of pixels.palette) {
       colors.push({
-        r: p.r,
-        g: p.g,
-        b: p.b,
-        a: p.a,
-        snes: rgbToBgr555(p.r, p.g, p.b),
+        r: c.r,
+        g: c.g,
+        b: c.b,
+        a: c.a,
+        snes: rgbToBgr555(c.r, c.g, c.b),
       });
     }
   }

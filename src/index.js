@@ -51,7 +51,10 @@ export async function runPng2Snes(imagePath, options) {
 
   const [tileW, tileH] = parseSize(options.tileSize || "8x8");
 
-  const { width, height, pixels } = await loadPng(inputPath);
+  const { width, height, pixels, palette: pngPalette } = await loadPng(inputPath);
+
+  // Anexa a paleta REAL do PNG ao array de pixels
+  pixels.palette = pngPalette;
 
   if (width % tileW !== 0 || height % tileH !== 0) {
     throw new Error(

@@ -16,9 +16,6 @@ program
   .option("--sprite-sizes <sizes>", "tamanhos de sprite (combo SNES), ex: 8x8,16x16")
   .option("--bpp <bpp>", "bits por pixel (2,4,8)", "4")
   .option("--paleta <arquivo>", "arquivo de paleta (.pal SNES ou .txt RGB)")
-  .option("--pal-index <idx>", "índice inicial de subpaleta (0-7 BG, 8-15 sprites)")
-  .option("--color-zero", "força inserção de cor zero preta quando houver só 15 cores por subpaleta")
-  .option("--no-color-zero", "não insere cor zero automaticamente")
   .option("--dedupe <modo>", "deduplicação de tiles: none,simple,h, v, full")
   .option("--metatile <wh>", "gera metatiles (ex: 16x16) em arquivo auxiliar JSON")
   .option("-o, --out-dir <dir>", "diretório de saída (default = diretório da imagem)")
@@ -92,18 +89,6 @@ program
       answers.spriteSizes = opts.spriteSizes;
     }
 
-    if (typeof opts.palIndex === "undefined" && opts.interactive && (answers.tipo || opts.tipo) === "bg") {
-      questions.push({
-        type: "number",
-        name: "palIndex",
-        message: "Subpaleta inicial (0-7 BG, 8-15 sprites):",
-        default: 0,
-        validate: v => (v >= 0 && v <= 15) || "Use um valor entre 0 e 15",
-      });
-    } else if (typeof opts.palIndex !== "undefined") {
-      answers.palIndex = Number(opts.palIndex);
-    }
-
     if (typeof opts.dedupe === "undefined" && opts.interactive && answers.tipo === "bg") {
       questions.push({
         type: "list",
@@ -152,19 +137,9 @@ program
       bpp: Number(answers.bpp || opts.bpp || 4),
       tileSize: answers.tileSize || opts.tileSize || "8x8",
       spriteSizes: answers.spriteSizes || opts.spriteSizes,
-      palIndex:
-        typeof answers.palIndex === "number"
-          ? answers.palIndex
-          : typeof opts.palIndex !== "undefined"
-          ? Number(opts.palIndex)
-          : undefined,
       dedupe: answers.dedupe || opts.dedupe || "simple",
       metatile: answers.metatile || opts.metatile,
     };
-
-    if (finalOpts.tipo === "sprite") {
-      delete finalOpts.palIndex;
-    }
 
     const MODE_RULES = {
       sprite: {

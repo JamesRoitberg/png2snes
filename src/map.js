@@ -14,8 +14,14 @@ export function buildTilemap({
   const words = new Uint16Array(tilesX * tilesY);
 
   for (const ref of tileRefs) {
-    const { tileIndex, hflip, vflip, mapX, mapY } = ref;
-    const palette = 0; // paleta relativa (0-7) - aqui deixamos 0, BG escolhe via CGRAM
+    const {
+      tileIndex,
+      hflip,
+      vflip,
+      palette = 0, // fallback seguro
+      mapX,
+      mapY,
+    } = ref;
     const priority = 0;
 
     let word = 0;
@@ -31,8 +37,7 @@ export function buildTilemap({
 
   const buf = Buffer.alloc(words.length * 2);
   for (let i = 0; i < words.length; i++) {
-    buf[i * 2] = words[i] & 0xff;
-    buf[i * 2 + 1] = (words[i] >> 8) & 0xff;
+    buf.writeUInt16LE(words[i], i * 2);
   }
   return buf;
 }

@@ -1,5 +1,16 @@
 import { Buffer } from "node:buffer";
 
+/**
+ * Constrói tilemap SNES válido (BG).
+ *
+ * Layout de bits (word 16-bit):
+ * bits  0–9  : tile index (0–1023)
+ * bit     10 : tile page (não usado aqui)
+ * bits 11–12 : palette (2 bits) [IGNORADO em 8bpp]
+ * bit     13 : priority
+ * bit     14 : hflip
+ * bit     15 : vflip
+ */
 export function buildTilemap({
   width,
   height,
@@ -7,6 +18,7 @@ export function buildTilemap({
   tileH,
   tileRefs,
   tipo,
+  bpp = 4,
 }) {
   const tilesX = width / tileW;
   const tilesY = height / tileH;
@@ -16,89 +28,65 @@ export function buildTilemap({
   for (const ref of tileRefs) {
     const {
       tileIndex,
-      hflip,
-      vflip,
-      palette = 0, // fallback seguro
+      hflip = false,
+      vflip = false,
+      palette = 0,
+      priority = 0,
+      tilePage = 0,
       mapX,
       mapY,
     } = ref;
-    const priority = 0;
+
+    // ========= validações SNES =========
+    if (tileIndex > 0x3ff) {
+      throw new Error(`tileIndex ${tileIndex} excede 1023 (limite SNES)`);
+    }
+    if (palette > 3) {
+      throw new Error(`palette ${palette} inválida para tilemap SNES (0–3)`);
+    }
+    if (mapX < 0 || mapX >= tilesX || mapY < 0 || mapY >= tilesY) {
+      throw new Error(`mapX/mapY fora do mapa: ${mapX},${mapY}`);
+    }
 
     let word = 0;
+
+    // bits 0–9 : tile index
     word |= tileIndex & 0x03ff;
-    if (hflip) word |= 1 << 10;
-    if (vflip) word |= 1 << 11;
-    if (priority) word |= 1 << 12;
-    word |= (palette & 0x7) << 13;
+
+    // bit 10 : tile page
+    if (tilePage) {
+      word |= 1 << 10;
+    }
+
+    // bits 11–12 : palette (somente se NÃO for 8bpp)
+    if (bpp !== 8) {
+      word |= (palette & 0x03) << 11;
+    }
+
+    // bit 13 : priority
+    if (priority) {
+      word |= 1 << 13;
+    }
+
+    // bit 14 : h flip
+    if (hflip) {
+      word |= 1 << 14;
+    }
+
+    // bit 15 : v flip
+    if (vflip) {
+      word |= 1 << 15;
+    }
 
     const index = mapY * tilesX + mapX;
     words[index] = word;
   }
 
+  // Escrita little-endian (SNES)
   const buf = Buffer.alloc(words.length * 2);
   for (let i = 0; i < words.length; i++) {
     buf.writeUInt16LE(words[i], i * 2);
   }
+
   return buf;
-}
-
-export function buildMetatileMap({
-  width,
-  height,
-  tileW,
-  tileH,
-  metaW,
-  metaH,
-  tileRefs,
-}) {
-  if (metaW % tileW !== 0 || metaH % tileH !== 0) {
-    throw new Error("Metatile não é múltipla do tile base.");
-  }
-  const tilesX = width / tileW;
-  const tilesY = height / tileH;
-
-  const metaTilesX = tilesX / (metaW / tileW);
-  const metaTilesY = tilesY / (metaH / tileH);
-
-  const grid = Array.from({ length: tilesY }, () =>
-    new Array(tilesX).fill(null)
-  );
-  for (const r of tileRefs) {
-    grid[r.mapY][r.mapX] = {
-      tileIndex: r.tileIndex,
-      hflip: r.hflip,
-      vflip: r.vflip,
-    };
-  }
-
-  const metas = [];
-  for (let my = 0; my < metaTilesY; my++) {
-    for (let mx = 0; mx < metaTilesX; mx++) {
-      const tiles = [];
-      for (let y = 0; y < metaH / tileH; y++) {
-        const row = [];
-        for (let x = 0; x < metaW / tileW; x++) {
-          const gx = mx * (metaW / tileW) + x;
-          const gy = my * (metaH / tileH) + y;
-          row.push(grid[gy][gx]);
-        }
-        tiles.push(row);
-      }
-      metas.push({
-        x: mx,
-        y: my,
-        tiles,
-      });
-    }
-  }
-
-  return {
-    metaW,
-    metaH,
-    tileW,
-    tileH,
-    metaTilesX,
-    metaTilesY,
-    metas,
-  };
 }

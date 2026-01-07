@@ -4,7 +4,7 @@ import { loadPng } from "./imageLoader.js";
 import { buildPalette } from "./palette.js";
 import { sliceTiles } from "./tiles.js";
 import { dedupeTiles } from "./dedup.js";
-import { buildTilemap, buildMetatileMap } from "./map.js";
+import { buildTilemap } from "./map.js";
 import {
   writeChr,
   writePal,

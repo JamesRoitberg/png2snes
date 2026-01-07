@@ -17,7 +17,6 @@ program
   .option("--bpp <bpp>", "bits por pixel (2,4,8)", "4")
   .option("--paleta <arquivo>", "arquivo de paleta (.pal SNES ou .txt RGB)")
   .option("--dedupe <modo>", "deduplicação de tiles: none,simple,h, v, full")
-  .option("--metatile <wh>", "gera metatiles (ex: 16x16) em arquivo auxiliar JSON")
   .option("-o, --out-dir <dir>", "diretório de saída (default = diretório da imagem)")
   .option("--no-interactive", "não perguntar nada, usar apenas flags")
   .action(async (imagem, opts) => {
@@ -107,30 +106,6 @@ program
       answers.dedupe = opts.dedupe;
     }
 
-    if (!opts.metatile && opts.interactive && answers.tipo === "bg") {
-      questions.push({
-        type: "confirm",
-        name: "wantsMetatile",
-        message: "Criar metatiles (ex: 16x16 para MK)?",
-        default: false,
-      });
-    }
-
-    if (questions.length && opts.interactive) {
-      const qAnswers = await inquirer.prompt(questions);
-      Object.assign(answers, qAnswers);
-      if (!opts.tileSize && opts.interactive && answers.tipo === "bg") {
-        const { metatileSize } = await inquirer.prompt({
-          type: "list",
-          name: "metatileSize",
-          message: "Tamanho da metatile:",
-          default: "16x16",
-          choices: ["16x16", "32x32"],
-        });
-        answers.metatile = metatileSize;
-      }
-    }
-
     const finalOpts = {
       ...opts,
       tipo: answers.tipo || opts.tipo,
@@ -138,7 +113,6 @@ program
       tileSize: answers.tileSize || opts.tileSize || "8x8",
       spriteSizes: answers.spriteSizes || opts.spriteSizes,
       dedupe: answers.dedupe || opts.dedupe || "simple",
-      metatile: answers.metatile || opts.metatile,
     };
 
     const MODE_RULES = {

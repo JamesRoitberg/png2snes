@@ -1,3 +1,4 @@
+// src/index.js
 import path from "node:path";
 import fs from "node:fs";
 import { loadPng } from "./imageLoader.js";
@@ -10,10 +11,9 @@ import {
   writePal,
   writeGpl,
   writeTilesetPreview,
-  writeMetatileJson
 } from "./exporters.js";
 import { validateTiles } from "./validateTiles.js";
-
+import { analyzeMapBuffer } from "./mapDiagnostics.js";
 
 export async function runPng2Snes(imagePath, options) {
   const inputPath = path.resolve(imagePath);
@@ -51,10 +51,38 @@ export async function runPng2Snes(imagePath, options) {
 
   const [tileW, tileH] = parseSize(options.tileSize || "8x8");
 
-  const { width, height, pixels, palette: pngPalette } = await loadPng(inputPath);
+  // loadPng() agora retorna { width, height, pixels, palette, indices }
+  const {
+    width,
+    height,
+    pixels,
+    palette: pngPalette,
+    indices
+  } = await loadPng(inputPath);
 
-  // Anexa a paleta REAL do PNG ao array de pixels
+  // Mantém compatibilidade: anexa a paleta REAL do PNG ao array de pixels (caso outras partes usem isso)
   pixels.palette = pngPalette;
+
+  if (tipo === "bg" && bpp === 4) {
+    const palBaseRaw =
+       options.palBase ??
+       options.paletaBase ??
+       options.subpaletaBase ??
+       options.subPaletteBase ??
+       options.subpaleta ??
+       options.subPalette;
+     // FALHA ALTO: não aceitar "default 0" silencioso aqui
+     if (typeof palBaseRaw === "undefined") {
+       throw new Error("palBase ausente para BG 4bpp (esperado inteiro 0..7 vindo do CLI).");
+     }
+   }
+
+   const palBase = Number(options.palBase);
+   if (tipo === "bg" && bpp === 4) {
+     if (!Number.isInteger(palBase) || palBase < 0 || palBase > 7) {
+       throw new Error(`palBase inválido para BG 4bpp: ${options.palBase} (use inteiro 0..7).`);
+     }
+  }
 
   if (width % tileW !== 0 || height % tileH !== 0) {
     throw new Error(
@@ -67,6 +95,10 @@ export async function runPng2Snes(imagePath, options) {
   if (tipo === "sprite") {
     maxColors = bpp === 2 ? 4 : bpp === 4 ? 16 : 256;
   } else {
+    // BG:
+    // - 2bpp: 4 cores
+    // - 4bpp: até 8 subpaletas * 16 = 128 (no PNG combinado)
+    // - 8bpp: 256 cores
     maxColors = bpp === 2 ? 4 : bpp === 4 ? 16 * 8 : 256;
   }
 
@@ -75,40 +107,58 @@ export async function runPng2Snes(imagePath, options) {
     options.palette ||
     options.pal ||
     options.paletteFile ||
-    null
-  ;
+    null;
 
+  // buildPalette: novo palette.js gera palette.entries compacto (0..N-1), sem buracos/padding.
+  // Não usar palIndex para deslocar entries.
   const palette = await buildPalette({
     pixels,
+    indices,       // opcional (se o palette.js quiser)
+    pngPalette,    // opcional (se o palette.js quiser)
     maxColors,
     bpp,
     paletteFile: paletteSource,
     tipo,
-    palIndex: tipo === "sprite" ? undefined : options.palIndex,
-    colorZero: options.colorZero !== false,
+    colorZero: options.colorZero !== false
   });
 
+  // Para sprite, garantir que fique apenas com a subpaleta real (sem reordenar).
+  // Como agora não há padding, normalmente já vem correto; isto é só proteção.
   if (tipo === "sprite") {
-    // Para sprite, pegamos APENAS a sub-paleta real (16 cores)
-    const start = palette.entries.length - palette.colorsPerSub;
-    palette.entries = palette.entries.slice(start);
+    const want = palette.colorsPerSub ?? (bpp === 2 ? 4 : bpp === 4 ? 16 : 256);
+    if (palette.entries.length > want) {
+      palette.entries = palette.entries.slice(0, want);
+    }
   }
-  
+
+  // sliceTiles() ajustado para aceitar indices, tipo, bpp, palBase
+  // e gerar tilePixels local (0..15) + tile.palette correto pro tilemap
   const tilesData = sliceTiles({
     pixels,
+    indices,
     width,
     height,
     tileW,
     tileH,
     palette,
+    tipo,
+    bpp,
+    palBase
   });
 
-  // WARNING APENAS PARA BG
+  // Para BG, validar tiles usando os índices reais (idx >> 4), então passamos indices e geometria.
   if (tipo === "bg") {
     validateTiles({
       tilesData,
-      palette,
+      indices,
+      width,
+      height,
+      tileW,
+      tileH,
       bpp,
+      tipo,
+      palBase,
+      palette
     });
   }
 
@@ -125,9 +175,12 @@ export async function runPng2Snes(imagePath, options) {
       tileH,
       tileRefs,
       tipo,
+      bpp,
+      palBase,
     });
   }
 
+  // exports permanecem
   const chrBuffer = writeChr(uniqueTiles, bpp);
   const palBuffer = writePal(palette);
   const gplText = writeGpl(palette, `${baseName} (png2snes)`);
@@ -139,28 +192,21 @@ export async function runPng2Snes(imagePath, options) {
   fs.writeFileSync(`${outBase}.pal`, palBuffer);
   fs.writeFileSync(`${outBase}.gpl`, gplText, "utf-8");
 
+   // Diagnóstico objetivo (opt-in): imprime histograma/flags do MAP gerado
+   if (tilemap && (options.debugMap || process.env.PNG2SNES_DEBUG_MAP === "1")) {
+     analyzeMapBuffer(tilemap, uniqueTiles.length);
+   }
+
   const tilesetPngPath = `${outBase}-tileset.png`;
-  
+
   if (tipo !== "sprite") {
     await writeTilesetPreview({
       tiles: uniqueTiles,
       palette,
       outPath: tilesetPngPath,
+      bpp,
+      palBase
     });
-  }
-
-  if (options.metatile && tipo !== "sprite") {
-    const [metaW, metaH] = parseSize(options.metatile);
-    const metaJson = buildMetatileMap({
-      width,
-      height,
-      tileW,
-      tileH,
-      metaW,
-      metaH,
-      tileRefs,
-    });
-    writeMetatileJson(`${outBase}.meta.json`, metaJson);
   }
 
   console.log("[png2snes] OK:");
@@ -173,9 +219,6 @@ export async function runPng2Snes(imagePath, options) {
   console.log("  GPL:", `${outBase}.gpl`);
   if (tipo !== "sprite") {
     console.log("  TILESET PNG:", tilesetPngPath);
-  }
-  if (options.metatile && tipo !== "sprite") {
-    console.log("  METATILES JSON:", `${outBase}.meta.json`);
   }
 }
 

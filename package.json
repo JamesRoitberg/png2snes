@@ -7,7 +7,8 @@
   },
   "type": "module",
   "scripts": {
-    "start": "node bin/png2snes.js"
+    "start": "node bin/png2snes.js",
+    "analyze:map": "node scripts/analyze-map.js"
   },
   "engines": {
     "node": ">=18.0.0"

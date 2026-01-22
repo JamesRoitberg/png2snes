@@ -6,6 +6,14 @@ import { runPng2Snes } from "../src/index.js";
 
 const program = new Command();
 
+function parsepalBase(value) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0 || n > 7) {
+    throw new Error(`bg-pal-base inválido: ${value} (use um inteiro de 0 a 7)`);
+  }
+  return n;
+}
+
 program
   .name("png2snes")
   .description("Converte PNG em tiles, mapas e paletas no formato do SNES.")
@@ -17,6 +25,8 @@ program
   .option("--bpp <bpp>", "bits por pixel (2,4,8)", "4")
   .option("--paleta <arquivo>", "arquivo de paleta (.pal SNES ou .txt RGB)")
   .option("--dedupe <modo>", "deduplicação: none,simple,h,v,full")
+  .option("--bg-pal-base <n>", "BG 4bpp: subpaleta base (0..7) aplicada no .map", parsepalBase )
+  .option("--debug-map", "imprime histograma/flags do .map gerado")
   .option("-o, --out-dir <dir>", "diretório de saída")
   .option("--no-interactive", "não perguntar nada, usar apenas flags")
   .action(async (imagem, opts) => {
@@ -98,11 +108,7 @@ program
       }
 
       // ========= DEDUPE (BG IMPORTANTE) =========
-      if (
-        interactive &&
-        tipo === "bg" &&
-        typeof opts.dedupe === "undefined"
-      ) {
+      if (interactive && tipo === "bg" && typeof opts.dedupe === "undefined") {
         questions.push({
           type: "list",
           name: "dedupe",
@@ -123,14 +129,47 @@ program
         Object.assign(answers, await inquirer.prompt(questions));
       }
 
+      // ========= RESOLVE BPP =========
+      const resolvedBpp = Number(answers.bpp ?? opts.bpp ?? 4);
+      if (![2, 4, 8].includes(resolvedBpp)) {
+        throw new Error("bpp inválido (use 2, 4 ou 8)");
+      }
+
+      // ========= BG PAL BASE (APENAS BG + 4BPP) =========
+      // default seguro e numérico (sempre definido para BG 4bpp)
+      let palBase = 0;
+      // flags (não-interativo ou interativo)
+      if (typeof opts.bgPalBase !== "undefined") {
+        palBase = parsepalBase(opts.bgPalBase);
+      } else if (interactive && tipo === "bg" && resolvedBpp === 4) {
+        const res = await inquirer.prompt({
+          type: "input",
+          name: "palBase",
+          message: "Subpaleta base do BG (0–7). Ex: 2 para não usar 0–1 do HUD",
+          default: "0",
+          validate: (v) => {
+            const n = Number(v);
+            if (!Number.isInteger(n) || n < 0 || n > 7) return "Use um inteiro de 0 a 7";
+            return true;
+          },
+          filter: (v) => Number(String(v).trim()),
+        });
+        palBase = parsepalBase(res.palBase);
+      }
+      // sprite e BG 8bpp: não usa palBase
+
       // ========= FINAL OPTIONS =========
       const finalOpts = {
         ...opts,
         tipo,
-        bpp: Number(answers.bpp ?? opts.bpp ?? 4),
+        bpp: resolvedBpp,
         tileSize: answers.tileSize ?? opts.tileSize ?? "8x8",
         spriteSizes: answers.spriteSizes ?? opts.spriteSizes,
         dedupe: answers.dedupe ?? opts.dedupe ?? "simple",
+        // GARANTIA: BG 4bpp sempre envia palBase numérico (0..7)
+        ...(tipo === "bg" && resolvedBpp === 4 ? { palBase } : {}),
+        // passa o debug adiante (para log em index.js)
+        debugMap: Boolean(opts.debugMap),
       };
 
       // ========= REGRAS =========
@@ -140,32 +179,6 @@ program
 
       // ========= CONVERSÃO =========
       await runPng2Snes(imagem, finalOpts);
-
-      // ========= MERGE BG =========
-      if (finalOpts.tipo === "bg" && interactive) {
-        const { wantsMerge } = await inquirer.prompt({
-          type: "confirm",
-          name: "wantsMerge",
-          message: "Deseja executar merge das partes (*-partN)?",
-          default: false,
-        });
-
-        if (wantsMerge) {
-          const { mergeParts } = await import("../merge/mergeParts.js");
-
-          const baseDir = finalOpts.outDir
-            ? path.resolve(finalOpts.outDir)
-            : path.dirname(path.resolve(imagem));
-
-          const mergeInputDir = path.join(baseDir, "converted");
-          const mergeOutputDir = path.join(mergeInputDir, "final");
-
-          const result = await mergeParts(mergeInputDir, mergeOutputDir);
-          console.log("[png2snes] Merge final gerado:");
-          console.log(result);
-        }
-      }
-
     } catch (err) {
       console.error("[png2snes] Erro:", err.message);
       process.exitCode = 1;

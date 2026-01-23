@@ -18,9 +18,9 @@
  *   -> gera stage-final.png na mesma pasta do primeiro arquivo (ou <primeiro>-final.png)
  */
 
-const fs = require("fs");
-const path = require("path");
-const zlib = require("zlib");
+import fs from "node:fs";
+import path from "node:path";
+import zlib from "node:zlib";
 
 // ------------------------- utils -------------------------
 

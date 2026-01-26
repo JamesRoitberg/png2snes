@@ -43,6 +43,8 @@ Exemplo de nomes:
 #### Passo 2 — Unir as partes preservando índices (combine-indexed)
 O GIMP pode **reordenar/remapear índices** quando você “achata” camadas e exporta, e isso quebra a consistência (o pixel continua “igual”, mas o **índice** muda).
 
+Ex de uso: node combine-indexed.js bgs/warrior-shrine-bg1-part1.png bgs/warrior-shrine-bg1-part2.png bgs/warrior-shrine-bg1-part3.png bgs/warrior-shrine-bg1-part4.png
+
 Use o script `combine-indexed.js` (ou equivalente no toolchain) para gerar:
 
 - `arena-final.png` (indexado, preservando os índices das partes)
@@ -294,6 +296,9 @@ Each part is an indexed PNG (16 colors).
 Each part uses one subpalette (16 colors).
 
 Step 2 — Combine while preserving indices (combine-indexed)
+
+Ex - How to use it: Ex de uso: node combine-indexed.js bgs/warrior-shrine-bg1-part1.png bgs/warrior-shrine-bg1-part2.png bgs/warrior-shrine-bg1-part3.png bgs/warrior-shrine-bg1-part4.png
+
 GIMP may reorder/remap indices when flattening/exporting, which breaks SNES pipelines (pixels look the same but their indices change).
 
 Use combine-indexed.js (or equivalent) to generate:

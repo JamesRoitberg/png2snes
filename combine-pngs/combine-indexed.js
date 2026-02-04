@@ -3,19 +3,23 @@
  * combine-indexed.js
  *
  * Junta vários PNGs indexados (color type 3) preservando índices/paletas:
- * - Cada entrada (parte) tem até 16 cores (índices 0..15).
- * - A paleta final é a concatenação das paletas das partes (blocos de 16).
- * - Os pixels da parte i são deslocados por i*16 (offset), sem reordenar cores.
- * - Composição por “camadas” no mesmo (0,0): índice 0 de cada parte é tratado como transparente (não pinta).
- * - Saída sempre como PNG indexado 8bpp (até 256 cores), para simplificar.
+ * - Cada parte tem até 16 cores (índices 0..15).
+ * - Paleta final = concatenação das paletas das partes (blocos de 16).
+ * - Pixels da parte i são deslocados por i*16.
  *
- * Limitações:
- * - Aceita apenas PNGs palettized (IHDR colorType=3), NÃO interlaced (interlace=0).
- * - Mantém PLTE/tRNS e índices exatos; não usa decodificadores RGBA (ex.: pngjs), pois eles perdem os índices.
+ * Composição:
+ * - Merge por pixel (camadas): partes posteriores sobrescrevem anteriores.
+ * - Índice 0 é tratado como TRANSPARÊNCIA (não pinta) — conforme workflow SNES/GIMP.
  *
- * Uso:
- *   node combine-indexed.js stage-part1.png stage-part2.png stage-part3.png
- *   -> gera stage-final.png na mesma pasta do primeiro arquivo (ou <primeiro>-final.png)
+ * Pós-process (SNES BG 4bpp):
+ * - O SNES exige 1 sub-paleta por tile 8×8.
+ * - Após o merge, cada tile 8×8 é “normalizado” para um único banco:
+ *   - Escolhe o banco dominante (topmost) presente no tile.
+ *   - Qualquer pixel de outro banco vira cor 0 do banco dominante.
+ *   - Pixels 0 também viram cor 0 do banco dominante.
+ *
+ * Saída:
+ * - PNG indexado 8bpp (até 256 cores).
  */
 
 import fs from "node:fs";
@@ -75,7 +79,6 @@ function ceilDiv(a, b) {
 // ------------------------- PNG decode (indexed) -------------------------
 
 function parsePngIndexed(fileBuf, fileNameForErrors = "input.png") {
-  // PNG signature
   const sig = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
   if (fileBuf.length < 8 || !fileBuf.subarray(0, 8).equals(sig)) {
     die(`${fileNameForErrors} não parece ser PNG (assinatura inválida)`);
@@ -94,7 +97,6 @@ function parsePngIndexed(fileBuf, fileNameForErrors = "input.png") {
     const data = fileBuf.subarray(off, off + len); off += len;
     const crcRead = readU32BE(fileBuf, off); off += 4;
 
-    // (Opcional) validar CRC
     const crcCalc = crc32(Buffer.concat([Buffer.from(type, "ascii"), data]));
     if ((crcCalc >>> 0) !== (crcRead >>> 0)) {
       die(`${fileNameForErrors} CRC inválido no chunk ${type} (esperado ${crcCalc >>> 0}, veio ${crcRead >>> 0})`);
@@ -112,9 +114,9 @@ function parsePngIndexed(fileBuf, fileNameForErrors = "input.png") {
         interlace: data[12],
       };
     } else if (type === "PLTE") {
-      plte = Buffer.from(data); // RGB triplets
+      plte = Buffer.from(data);
     } else if (type === "tRNS") {
-      trns = Buffer.from(data); // alpha per palette entry (only for indexed)
+      trns = Buffer.from(data);
     } else if (type === "IDAT") {
       idatParts.push(Buffer.from(data));
     } else if (type === "IEND") {
@@ -136,7 +138,6 @@ function parsePngIndexed(fileBuf, fileNameForErrors = "input.png") {
     die(`${fileNameForErrors} bitDepth ${ihdr.bitDepth} não suportado (somente 1,2,4,8 em indexed)`);
   }
 
-  // Inflate image data
   const idat = Buffer.concat(idatParts);
   let inflated;
   try {
@@ -149,14 +150,9 @@ function parsePngIndexed(fileBuf, fileNameForErrors = "input.png") {
   const rowPackedBytes = ceilDiv(width * bitDepth, 8);
   const expected = height * (1 + rowPackedBytes);
   if (inflated.length !== expected) {
-    // Alguns PNGs podem ter chunks extras; mas aqui o formato normal bate.
-    die(
-      `${fileNameForErrors} tamanho inesperado após inflate: ${inflated.length}, esperado ${expected}. ` +
-      `Talvez PNG com filtro/interlace diferente.`
-    );
+    die(`${fileNameForErrors} tamanho inesperado após inflate: ${inflated.length}, esperado ${expected}.`);
   }
 
-  // Unfilter scanlines -> packed indices per row
   const packed = Buffer.alloc(height * rowPackedBytes);
   let inOff = 0;
   let prev = Buffer.alloc(rowPackedBytes, 0);
@@ -167,31 +163,26 @@ function parsePngIndexed(fileBuf, fileNameForErrors = "input.png") {
     const cur = Buffer.from(inflated.subarray(inOff, inOff + rowPackedBytes));
     inOff += rowPackedBytes;
 
-    // bytes-per-pixel (em bytes) para filtros = 1 para indexed (independente de bitDepth), mas o “Sub” usa 1 byte à esquerda
     const bpp = 1;
 
     if (filterType === 0) {
       // None
     } else if (filterType === 1) {
-      // Sub
       for (let i = 0; i < rowPackedBytes; i++) {
         const left = i >= bpp ? cur[i - bpp] : 0;
         cur[i] = (cur[i] + left) & 0xFF;
       }
     } else if (filterType === 2) {
-      // Up
       for (let i = 0; i < rowPackedBytes; i++) {
         cur[i] = (cur[i] + prev[i]) & 0xFF;
       }
     } else if (filterType === 3) {
-      // Average
       for (let i = 0; i < rowPackedBytes; i++) {
         const left = i >= bpp ? cur[i - bpp] : 0;
         const up = prev[i];
         cur[i] = (cur[i] + Math.floor((left + up) / 2)) & 0xFF;
       }
     } else if (filterType === 4) {
-      // Paeth
       function paeth(a, b, c) {
         const p = a + b - c;
         const pa = Math.abs(p - a);
@@ -215,7 +206,6 @@ function parsePngIndexed(fileBuf, fileNameForErrors = "input.png") {
     prev = cur;
   }
 
-  // Unpack indices to 8-bit per pixel
   const indices = new Uint8Array(width * height);
   if (bitDepth === 8) {
     for (let y = 0; y < height; y++) {
@@ -229,35 +219,21 @@ function parsePngIndexed(fileBuf, fileNameForErrors = "input.png") {
       let px = 0;
       for (let i = 0; i < row.length && px < width; i++) {
         const byte = row[i];
-        // extrai do MSB para LSB
         for (let shift = 8 - bitDepth; shift >= 0 && px < width; shift -= bitDepth) {
-          const idx = (byte >> shift) & mask;
-          indices[y * width + px] = idx;
+          indices[y * width + px] = (byte >> shift) & mask;
           px++;
         }
       }
     }
   }
 
-  // Build palette RGBA, preservando ordem
   const alphas = new Uint8Array(Math.max(0, paletteSize));
   alphas.fill(255);
   if (trns) {
-    for (let i = 0; i < Math.min(trns.length, paletteSize); i++) {
-      alphas[i] = trns[i];
-    }
+    for (let i = 0; i < Math.min(trns.length, paletteSize); i++) alphas[i] = trns[i];
   }
 
-  return {
-    width,
-    height,
-    bitDepth,
-    paletteSize,
-    plte,         // RGB triplets
-    trns: trns || Buffer.alloc(0),
-    alphas,
-    indices,
-  };
+  return { width, height, bitDepth, paletteSize, plte, trns: trns || Buffer.alloc(0), alphas, indices };
 }
 
 // ------------------------- PNG encode (indexed 8bpp) -------------------------
@@ -270,27 +246,24 @@ function encodePngIndexed8({ width, height, paletteRGB, paletteA, indices }) {
 
   const signature = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 
-  // IHDR
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width >>> 0, 0);
   ihdr.writeUInt32BE(height >>> 0, 4);
-  ihdr[8] = 8;   // bit depth = 8
-  ihdr[9] = 3;   // color type = indexed
-  ihdr[10] = 0;  // compression
-  ihdr[11] = 0;  // filter
-  ihdr[12] = 0;  // interlace
+  ihdr[8] = 8;
+  ihdr[9] = 3;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
 
   const chunks = [];
   chunks.push(makeChunk("IHDR", ihdr));
   chunks.push(makeChunk("PLTE", Buffer.from(paletteRGB)));
-  // Sempre escrever tRNS completo (nColors bytes). OK para indexed.
   chunks.push(makeChunk("tRNS", Buffer.from(paletteA)));
 
-  // IDAT: filtro 0 por linha
   const raw = Buffer.alloc(height * (1 + width));
   let o = 0;
   for (let y = 0; y < height; y++) {
-    raw[o++] = 0; // filter byte
+    raw[o++] = 0;
     const rowStart = y * width;
     for (let x = 0; x < width; x++) raw[o++] = indices[rowStart + x];
   }
@@ -307,11 +280,8 @@ function encodePngIndexed8({ width, height, paletteRGB, paletteA, indices }) {
 function suggestOutputName(firstPath) {
   const dir = path.dirname(firstPath);
   const base = path.basename(firstPath, path.extname(firstPath));
-
-  // tenta cortar sufixos comuns: -part1, _part2, part3, etc.
   const m = base.match(/^(.*?)([-_]?part\d+)?$/i);
   const stem = m && m[1] ? m[1] : base;
-
   return path.join(dir, `${stem}-final.png`);
 }
 
@@ -321,7 +291,11 @@ function ensureTileAligned(w, h, name) {
   }
 }
 
-function fixZeroPerTile(outIdx, outW, outH) {
+// Normaliza tile 8×8 para um único banco:
+// - escolhe banco do pixel mais "de cima" (topmost) que aparece no tile
+// - pixels de outros bancos viram base+0
+// - pixels 0 viram base+0
+function normalizeTileBanks(outIdx, outW, outH) {
   const tilesX = outW >> 3;
   const tilesY = outH >> 3;
 
@@ -330,21 +304,37 @@ function fixZeroPerTile(outIdx, outW, outH) {
       const x0 = tx * 8;
       const y0 = ty * 8;
 
-      let base = -1;
-      for (let y = 0; y < 8 && base < 0; y++) {
+      // 1) coleta bancos presentes e define banco dominante = do último nonzero que aparece (topmost)
+      let dominantBase = -1;
+
+      // varre em ordem de memória (tanto faz), mas pega o "último" nonzero visto como dominante
+      for (let y = 0; y < 8; y++) {
         const row = (y0 + y) * outW;
         for (let x = 0; x < 8; x++) {
           const v = outIdx[row + (x0 + x)];
-          if (v !== 0) { base = v & 0xF0; break; }
+          if (v !== 0) dominantBase = v & 0xF0;
         }
       }
-      if (base < 0) continue;
 
+      // tile vazio (tudo 0) -> deixa 0
+      if (dominantBase < 0) continue;
+
+      // 2) força todos pixels para esse banco (mantendo low nibble quando já é do banco; senão vira 0 do banco)
       for (let y = 0; y < 8; y++) {
         const row = (y0 + y) * outW;
         for (let x = 0; x < 8; x++) {
           const p = row + (x0 + x);
-          if (outIdx[p] === 0) outIdx[p] = base;
+          const v = outIdx[p];
+
+          if (v === 0) {
+            outIdx[p] = dominantBase; // base+0
+            continue;
+          }
+
+          const base = v & 0xF0;
+          if (base !== dominantBase) {
+            outIdx[p] = dominantBase; // remove pixel "de outro banco"
+          }
         }
       }
     }
@@ -353,12 +343,8 @@ function fixZeroPerTile(outIdx, outW, outH) {
 
 function main(argv) {
   const args = argv.slice(2).filter(a => !a.startsWith("-"));
-  if (args.length < 1) {
-    die("uso: node combine-indexed.js part1.png part2.png ...");
-  }
-  if (args.length > 16) {
-    die("máximo de 16 partes (16*16 = 256 cores).");
-  }
+  if (args.length < 1) die("uso: node combine-indexed.js part1.png part2.png ...");
+  if (args.length > 16) die("máximo de 16 partes (16*16 = 256 cores).");
 
   const parts = args.map((p) => {
     const buf = fs.readFileSync(p);
@@ -367,6 +353,7 @@ function main(argv) {
     ensureTileAligned(png.width, png.height, p);
 
     if (png.paletteSize > 16) die(`${p} tem ${png.paletteSize} cores na paleta (precisa ser <= 16)`);
+
     // valida índices usados
     let maxIdx = 0;
     for (let i = 0; i < png.indices.length; i++) {
@@ -378,12 +365,10 @@ function main(argv) {
       die(`${p} usa índice ${maxIdx}, mas PLTE tem só ${png.paletteSize} entradas. Reexporte garantindo paleta completa.`);
     }
 
-    // Normaliza paleta para exatamente 16 entradas, sem reordenar:
-    // - se vier com menos de 16, pad com (0,0,0) e alpha 255
+    // Normaliza paleta para 16 entradas
     const palRGB = Buffer.alloc(16 * 3, 0);
     const palA = Buffer.alloc(16, 255);
 
-    // copia as entradas existentes
     png.plte.copy(palRGB, 0, 0, png.paletteSize * 3);
     for (let i = 0; i < png.paletteSize; i++) palA[i] = png.alphas[i];
 
@@ -422,8 +407,9 @@ function main(argv) {
   const outIdx = new Uint8Array(outW * outH);
   outIdx.fill(0);
 
-  // - trata índice 0 de cada parte como transparente: não pinta
-  // - partes posteriores sobrescrevem anteriores quando índice != 0
+  // Merge por pixel:
+  // - índice 0 é transparente (não pinta)
+  // - partes posteriores sobrescrevem anteriores
   for (let pi = 0; pi < nParts; pi++) {
     const part = parts[pi];
     const offset = pi * 16;
@@ -434,13 +420,14 @@ function main(argv) {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const src = part.indices[y * w + x]; // 0..15
-        if (src === 0) continue;             // transparente no merge
+        if (src === 0) continue;             // TRANSPARÊNCIA por índice, como você espera
         outIdx[y * outW + x] = (src + offset) & 0xFF;
       }
     }
   }
 
-  fixZeroPerTile(outIdx, outW, outH);
+  // Pós-process por tile para evitar mistura de subpaletas no SNES
+  normalizeTileBanks(outIdx, outW, outH);
 
   const outPath = suggestOutputName(args[0]);
   const outPng = encodePngIndexed8({

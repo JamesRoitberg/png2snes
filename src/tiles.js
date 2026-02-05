@@ -2,11 +2,15 @@
 
 export function sliceTiles({
   pixels,
+  indices, // <- NOVO: índices reais do PNG indexado (Uint8Array) quando disponíveis
   width,
   height,
   tileW,
   tileH,
   palette,
+  tipo = "bg",
+  bpp = 4,
+
   // Base de subpaleta (0-7 BG, 8-15 sprites). Se não vier, usa palette.subBase ou 0.
   palBase = palette?.subBase ?? 0,
 }) {
@@ -14,20 +18,27 @@ export function sliceTiles({
   const tilesX = width / tileW;
   const tilesY = height / tileH;
 
-  // Detecta se "pixels" vem com índice real do PNG (ex.: Uint8Array com índices,
-  // ou objeto com .idx). Mantém fallback RGBA usando palette.findColorIndex.
-  const getRealIndex = (p) => {
+  // Detecta se temos índices reais (PNG indexado)
+  const hasIndices =
+    indices &&
+    (indices instanceof Uint8Array || ArrayBuffer.isView(indices)) &&
+    indices.length === width * height;
+
+  // Mantém fallback antigo: tenta extrair índice se vier como number / {idx}
+  const getRealIndexFromPixel = (p) => {
     if (typeof p === "number") return p;
     if (p && typeof p === "object" && Number.isInteger(p.idx)) return p.idx;
     return null;
   };
 
+  // Quantas cores por subpaleta dependendo do bpp (para decompor idx -> (srcPal, local))
+  const colorsPerSub = bpp === 2 ? 4 : bpp === 4 ? 16 : 256;
+
   for (let ty = 0; ty < tilesY; ty++) {
     for (let tx = 0; tx < tilesX; tx++) {
       const tilePixels = [];
 
-      // Novos campos:
-      // - srcPalette: subpaleta original do PNG (idx >> 4)
+      // - srcPalette: subpaleta original do PNG (idx / colorsPerSub)
       // - palette: subpaleta final para o tilemap (srcPalette + palBase)
       let tileSrcPalette = null;
 
@@ -39,32 +50,57 @@ export function sliceTiles({
         for (let x = 0; x < tileW; x++) {
           const px = tx * tileW + x;
           const py = ty * tileH + y;
-          const p = pixels[py * width + px];
+          const i = py * width + px;
 
-          const idx = getRealIndex(p);
+          // =========================================
+          // Caminho preferido: índices reais do PNG
+          // =========================================
+          let idx = null;
+
+          if (hasIndices) {
+            idx = indices[i] & 0xff;
+          } else {
+            // fallback compat: tenta puxar idx de pixels (number/{idx})
+            const p = pixels[i];
+            idx = getRealIndexFromPixel(p);
+          }
 
           if (idx !== null) {
-            // PNG indexado via índice real:
-            const local = idx & 0x0f; // 0..15 (4bpp)
-            const srcPal = idx >> 4; // subpaleta original no PNG
+            // idx é índice "absoluto" no PNG
+            // - Em 4bpp BG multi-sub: idx 0..127, srcPal = idx>>4, local = idx&15
+            // - Em 2bpp (se usar multi-sub): srcPal = idx>>2, local = idx&3
+            // - Em 8bpp: não há subpaleta; local = idx
+            let local;
+            let srcPal;
+
+            if (bpp === 8) {
+              local = idx; // 0..255
+              srcPal = 0;
+            } else {
+              // colorsPerSub é 4 (2bpp) ou 16 (4bpp)
+              local = idx & (colorsPerSub - 1);
+              srcPal = idx >> (bpp === 2 ? 2 : 4);
+            }
 
             if (local !== 0) allZeroLocal = false;
 
-            // A fonte da verdade da subpaleta é o idx real.
-            // A 1ª ocorrência de pixel não-zero fixa a srcPalette do tile.
+            // Mantém sua regra atual: 1º pixel não-zero fixa a srcPalette
             if (tileSrcPalette === null && local !== 0) {
               tileSrcPalette = srcPal;
             }
 
             row.push(local);
           } else {
-            // Fallback atual (RGBA -> índice absoluto via palette.findColorIndex)
+            // =========================================
+            // Fallback antigo: RGBA -> índice via palette.findColorIndex
+            // =========================================
+            const p = pixels[i];
+
             const colorIndex = palette.findColorIndex(p);
 
             // deduz subpaleta a partir do índice absoluto
             const subPalette = Math.floor(colorIndex / palette.colorsPerSub);
 
-            // fixa a "srcPalette" por compatibilidade do preview (aqui equivale à subpaleta deduzida)
             if (tileSrcPalette === null && p?.a !== 0) {
               tileSrcPalette = subPalette;
             }

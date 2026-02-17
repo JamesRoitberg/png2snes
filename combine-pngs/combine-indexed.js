@@ -20,11 +20,19 @@
  *
  * Saída:
  * - PNG indexado 8bpp (até 256 cores).
+ *
+ * ALTERAÇÃO (ÚNICA) PEDIDA:
+ * - Sempre salva o PNG final em: ../to-convert (relativo à pasta deste script)
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { fileURLToPath } from "node:url";
+
+// Pasta fixa de saída: "../to-convert" relativo ao diretório deste script
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const OUT_DIR = path.resolve(SCRIPT_DIR, "..", "to-convert");
 
 // ------------------------- utils -------------------------
 
@@ -277,12 +285,11 @@ function encodePngIndexed8({ width, height, paletteRGB, paletteA, indices }) {
 
 // ------------------------- combining logic -------------------------
 
-function suggestOutputName(firstPath) {
-  const dir = path.dirname(firstPath);
+function suggestOutputName(firstPath, outDir) {
   const base = path.basename(firstPath, path.extname(firstPath));
   const m = base.match(/^(.*?)([-_]?part\d+)?$/i);
-  const stem = m && m[1] ? m[1] : base;
-  return path.join(dir, `${stem}-final.png`);
+  const stem = (m && m[1]) ? m[1] : base;
+  return path.join(outDir, `${stem}-final.png`);
 }
 
 function ensureTileAligned(w, h, name) {
@@ -304,10 +311,9 @@ function normalizeTileBanks(outIdx, outW, outH) {
       const x0 = tx * 8;
       const y0 = ty * 8;
 
-      // 1) coleta bancos presentes e define banco dominante = do último nonzero que aparece (topmost)
+      // 1) define banco dominante = do último nonzero que aparece (topmost)
       let dominantBase = -1;
 
-      // varre em ordem de memória (tanto faz), mas pega o "último" nonzero visto como dominante
       for (let y = 0; y < 8; y++) {
         const row = (y0 + y) * outW;
         for (let x = 0; x < 8; x++) {
@@ -319,7 +325,7 @@ function normalizeTileBanks(outIdx, outW, outH) {
       // tile vazio (tudo 0) -> deixa 0
       if (dominantBase < 0) continue;
 
-      // 2) força todos pixels para esse banco (mantendo low nibble quando já é do banco; senão vira 0 do banco)
+      // 2) força todos pixels para esse banco
       for (let y = 0; y < 8; y++) {
         const row = (y0 + y) * outW;
         for (let x = 0; x < 8; x++) {
@@ -420,7 +426,7 @@ function main(argv) {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const src = part.indices[y * w + x]; // 0..15
-        if (src === 0) continue;             // TRANSPARÊNCIA por índice, como você espera
+        if (src === 0) continue;             // TRANSPARÊNCIA por índice
         outIdx[y * outW + x] = (src + offset) & 0xFF;
       }
     }
@@ -429,7 +435,11 @@ function main(argv) {
   // Pós-process por tile para evitar mistura de subpaletas no SNES
   normalizeTileBanks(outIdx, outW, outH);
 
-  const outPath = suggestOutputName(args[0]);
+  // ----- ÚNICA MUDANÇA: saída fixa em OUT_DIR -----
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+  const outPath = suggestOutputName(args[0], OUT_DIR);
+  // -----------------------------------------------
+
   const outPng = encodePngIndexed8({
     width: outW,
     height: outH,

@@ -39,6 +39,10 @@ node bgPriority.js \
   --map ../to-convert/converted/pit-bg2.map \
   --out ../to-convert/converted/pit-bg2-pri.map
 
+Versão com 1 linha para evitar erros
+  node bgPriority.js --png ../to-convert/converted/courtyard-bg2-final.png --mask ../to-convert/converted/courtyard-bg2-prio.png --map ../to-convert/converted/courtyard-bg2-final.map --out ../to-convert/converted/courtyard-bg2-prio.map
+
+
 Opção de layout (raramente necessário)
 Por padrão --layout auto:
 

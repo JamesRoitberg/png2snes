@@ -14,6 +14,40 @@ import {
 } from "./exporters.js";
 import { validateTiles } from "./validateTiles.js";
 import { analyzeMapBuffer } from "./mapDiagnostics.js";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+function detectBgLayer(stem) {
+  if (/(^|[-_])bg1([-_]|$)/i.test(stem)) return "bg1";
+  if (/(^|[-_])bg2([-_]|$)/i.test(stem)) return "bg2";
+  return null;
+}
+
+function swapBgLayer(stem) {
+  if (/(^|[-_])bg1([-_]|$)/i.test(stem)) return stem.replace(/(^|[-_])bg1([-_]|$)/i, "$1bg2$2");
+  if (/(^|[-_])bg2([-_]|$)/i.test(stem)) return stem.replace(/(^|[-_])bg2([-_]|$)/i, "$1bg1$2");
+  return null;
+}
+
+function runVramLayoutHelper({ bpp, bg1Chr, bg1Map, bg2Chr, bg2Map, strict }) {
+  const helperPath = fileURLToPath(new URL("../tools/vramLayoutHelper.js", import.meta.url));
+
+  const argv = [helperPath, "--bpp", String(bpp), "--auto"];
+  if (bg1Chr) argv.push("--bg1-chr", bg1Chr);
+  if (bg1Map) argv.push("--bg1-map", bg1Map);
+  if (bg2Chr) argv.push("--bg2-chr", bg2Chr);
+  if (bg2Map) argv.push("--bg2-map", bg2Map);
+
+  const r = spawnSync(process.execPath, argv, { stdio: "inherit" });
+
+  if (r.status !== 0) {
+    if (strict) {
+      throw new Error("VRAM layout helper falhou (strict).");
+    } else {
+      console.warn("[png2snes] WARN: VRAM layout helper falhou (ignorei).");
+    }
+  }
+}
 
 export async function runPng2Snes(imagePath, options) {
   const inputPath = path.resolve(imagePath);
@@ -219,6 +253,63 @@ export async function runPng2Snes(imagePath, options) {
   console.log("  GPL:", `${outBase}.gpl`);
   if (tipo !== "sprite") {
     console.log("  TILESET PNG:", tilesetPngPath);
+  }
+
+    // -----------------------------------------------------------------------------
+  // VRAM layout helper (por padrão para BG)
+  // - Só roda se o nome tiver bg1/bg2 (pra não “chutar” layer)
+  // - Por padrão é não-strict (não quebra conversão se falhar)
+  // - Para strict: export PNG2SNES_VRAM_STRICT=1
+  // -----------------------------------------------------------------------------
+  if (tipo === "bg" && options.printVramLayout !== false) {
+    const strict = process.env.PNG2SNES_VRAM_STRICT === "1";
+
+    const layer = detectBgLayer(baseName);
+    const otherBaseName = swapBgLayer(baseName);
+
+    if (!layer || !otherBaseName) {
+      console.log("[png2snes] VRAM layout: pulei (nome não contém bg1/bg2).");
+    } else {
+      const thisChr = `${outBase}.chr`;
+      const thisMap = `${outBase}.map`;
+
+      const otherBase = path.join(outDir, otherBaseName);
+      const otherChr = `${otherBase}.chr`;
+      const otherMap = `${otherBase}.map`;
+
+      const hasOther = fs.existsSync(otherChr) && fs.existsSync(otherMap);
+
+      // Só roda se o map atual for dos tamanhos esperados (evita quebrar casos gerais)
+      const expectedThisMapSize = layer === "bg1" ? 0x2000 : 0x1000;
+      if (!fs.existsSync(thisMap)) {
+        console.log("[png2snes] VRAM layout: pulei (MAP não existe).");
+      } else {
+        const thisMapSize = fs.statSync(thisMap).size;
+        if (thisMapSize !== expectedThisMapSize) {
+          console.log(`[png2snes] VRAM layout: pulei (MAP size ${thisMapSize} não é o esperado ${expectedThisMapSize}).`);
+        } else {
+          if (layer === "bg1") {
+            runVramLayoutHelper({
+              bpp,
+              bg1Chr: thisChr,
+              bg1Map: thisMap,
+              bg2Chr: hasOther ? otherChr : null,
+              bg2Map: hasOther ? otherMap : null,
+              strict,
+            });
+          } else {
+            runVramLayoutHelper({
+              bpp,
+              bg1Chr: hasOther ? otherChr : null,
+              bg1Map: hasOther ? otherMap : null,
+              bg2Chr: thisChr,
+              bg2Map: thisMap,
+              strict,
+            });
+          }
+        }
+      }
+    }
   }
 }
 

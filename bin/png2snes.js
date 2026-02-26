@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import inquirer from "inquirer";
-import path from "node:path";
 import { runPng2Snes } from "../src/index.js";
 
 const program = new Command();
@@ -29,6 +28,7 @@ program
   .option("--debug-map", "imprime histograma/flags do .map gerado")
   .option("-o, --out-dir <dir>", "diretório de saída")
   .option("--no-interactive", "não perguntar nada, usar apenas flags")
+  .option("--no-print-vram-layout", "não imprimir layout de VRAM (BG)")
   .action(async (imagem, opts) => {
     try {
       const interactive = opts.interactive !== false;
@@ -170,6 +170,7 @@ program
         ...(tipo === "bg" && resolvedBpp === 4 ? { palBase } : {}),
         // passa o debug adiante (para log em index.js)
         debugMap: Boolean(opts.debugMap),
+        printVramLayout: opts.printVramLayout, // por padrão vira true; se passar --no-... vira false
       };
 
       // ========= REGRAS =========

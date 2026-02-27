@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url";
 
 // Pasta fixa de saída: "../to-convert" relativo ao diretório deste script
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = path.resolve(SCRIPT_DIR, "..", "to-convert");
+const DEFAULT_OUT_DIR = path.resolve(SCRIPT_DIR, "..", "to-convert");
 
 // ------------------------- utils -------------------------
 
@@ -82,6 +82,54 @@ function makeChunk(type4, data) {
 
 function ceilDiv(a, b) {
   return Math.floor((a + b - 1) / b);
+}
+
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseCli(argv) {
+  const out = { dir: null, stem: null, out: null, files: [] };
+
+  for (let i = 2; i < argv.length; i++) {
+    const a = argv[i];
+
+    if (a === "--dir") {
+      out.dir = argv[++i];
+      continue;
+    }
+    if (a === "--stem") {
+      out.stem = argv[++i];
+      continue;
+    }
+    if (a === "--out") {
+      out.out = argv[++i];
+      continue;
+    }
+
+    if (a.startsWith("--")) {
+      die(`flag desconhecida: ${a} (use --dir, --stem, --out ou passe arquivos diretamente)`);
+    }
+
+    out.files.push(a);
+  }
+
+  return out;
+}
+
+function findPartsByStem(dir, stem) {
+  const re = new RegExp(`^${escapeRegExp(stem)}[-_]?part(\\d+)\\.png$`, "i");
+  const entries = fs.readdirSync(dir);
+
+  const matches = [];
+  for (const f of entries) {
+    const m = f.match(re);
+    if (!m) continue;
+    matches.push({ file: f, n: Number(m[1]) });
+  }
+
+  matches.sort((a, b) => (a.n - b.n) || a.file.localeCompare(b.file));
+  return matches.map((m) => path.join(dir, m.file));
 }
 
 // ------------------------- PNG decode (indexed) -------------------------
@@ -348,11 +396,28 @@ function normalizeTileBanks(outIdx, outW, outH) {
 }
 
 function main(argv) {
-  const args = argv.slice(2).filter(a => !a.startsWith("-"));
-  if (args.length < 1) die("uso: node combine-indexed.js part1.png part2.png ...");
-  if (args.length > 16) die("máximo de 16 partes (16*16 = 256 cores).");
+  const cli = parseCli(argv);
 
-  const parts = args.map((p) => {
+  const outDir = cli.dir ? path.resolve(cli.dir) : DEFAULT_OUT_DIR;
+
+  let inputFiles = cli.files;
+
+  // Se não passou arquivos, usa --stem para descobrir automaticamente.
+  if (inputFiles.length === 0) {
+    if (!cli.stem) {
+      die("uso: node combine-indexed.js part1.png part2.png ...  OU  node combine-indexed.js --dir <dir> --stem <stem>");
+    }
+
+    inputFiles = findPartsByStem(outDir, cli.stem);
+
+    if (inputFiles.length === 0) {
+      die(`nenhuma parte encontrada em ${outDir}. Esperado: ${cli.stem}-partN.png (ex: ${cli.stem}-part1.png)`);
+    }
+  }
+
+  if (inputFiles.length > 16) die("máximo de 16 partes (16*16 = 256 cores).");
+
+    const parts = inputFiles.map((p) => {
     const buf = fs.readFileSync(p);
     const png = parsePngIndexed(buf, p);
 
@@ -436,8 +501,11 @@ function main(argv) {
   normalizeTileBanks(outIdx, outW, outH);
 
   // ----- ÚNICA MUDANÇA: saída fixa em OUT_DIR -----
-  fs.mkdirSync(OUT_DIR, { recursive: true });
-  const outPath = suggestOutputName(args[0], OUT_DIR);
+  fs.mkdirSync(outDir, { recursive: true });
+
+  const outPath = cli.out
+    ? (path.isAbsolute(cli.out) ? cli.out : path.join(outDir, cli.out))
+    : suggestOutputName(inputFiles[0], outDir);
   // -----------------------------------------------
 
   const outPng = encodePngIndexed8({

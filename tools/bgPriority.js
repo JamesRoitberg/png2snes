@@ -3,10 +3,12 @@
 //
 // Uso:
 //   node tools/bgPriority.js --png pit-bg2.png --mask pit-bg2-priority.png --map pit-bg2.map --out pit-bg2-pri.map
+//   npm run bg:priority -- --png to-convert/converted/pit-bg2.png --mask to-convert/converted/pit-bg2.png --map to-convert/converted/pit-bg2.map --out to-convert/converted/pit-bg2-pri.map
 //
 // Opcional:
 //   --layout auto|snes|linear   (default: auto)
 //     auto => snes se tilesX>32 || tilesY>32, senão linear
+//     npm run bg:priority -- --dir to-convert/converted --stem pit-bg2
 //
 // Regra da máscara:
 //   Para cada tile 8×8, se existir QUALQUER pixel com alpha>0 no bloco 8×8 da máscara => priority=1 naquele tile.
@@ -55,17 +57,46 @@ function mapIndexSnes(tilesX, x, y) {
 function main() {
   const args = parseArgs(process.argv);
 
-  const pngPath = args.png;
-  const maskPath = args.mask;
-  const mapPath = args.map;
-  const outPath = args.out;
+  let pngPath = args.png;
+  let maskPath = args.mask;
+  let mapPath = args.map;
+  let outPath = args.out;
   const layoutArg = (args.layout ?? "auto").toLowerCase();
+
+  const dir = args.dir ? String(args.dir) : "";
+  const stem = args.stem ? String(args.stem) : "";
+
+  if (stem) {
+    const baseDir = dir || ".";
+    const pickExisting = (candidates) => {
+      for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+      }
+      return candidates[0];
+    };
+
+    if (!pngPath) pngPath = path.join(baseDir, `${stem}.png`);
+    if (!mapPath) mapPath = path.join(baseDir, `${stem}.map`);
+
+    if (!maskPath) {
+      maskPath = pickExisting([
+        path.join(baseDir, `${stem}-priority.png`),
+        path.join(baseDir, `${stem}-prio.png`),
+      ]);
+    }
+
+    if (!outPath) outPath = path.join(baseDir, `${stem}-pri.map`);
+  }
 
   if (!pngPath || !maskPath || !mapPath || !outPath) {
     console.error(
-      "Uso: node tools/bgPriority.js --png final.png --mask mask.png --map in.map --out out.map [--layout auto|snes|linear]"
+      "Uso: node tools/bgPriority.js (--png final.png --mask mask.png --map in.map --out out.map | --dir <dir> --stem <stem>) [--layout auto|snes|linear]"
     );
     process.exit(1);
+  }
+
+  if (path.resolve(pngPath) === path.resolve(maskPath)) {
+    console.warn("[bgPriority] WARN: --mask é o mesmo arquivo que --png. Isso provavelmente marcará quase tudo como prioridade.");
   }
 
   const finalPng = readPng(pngPath);

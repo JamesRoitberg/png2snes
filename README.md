@@ -2,91 +2,92 @@
 
 ## Português
 
-### Descrição curta
+### Descrição
 
 **png2snes** converte **PNG indexado** em assets prontos para o **Super Nintendo (SNES)**:
 
-- **.chr** (tiles)
-- **.map** (tilemap)
-- **.pal** (paleta em formato SNES)
-- **.gpl** (paleta para GIMP)
-- **\*-tileset.png** (preview/inspeção rápida)
+- **.chr** — tiles (formato planar SNES)
+- **.map** — tilemap *(apenas BG)*
+- **.pal** — paleta em formato SNES (BGR555)
+- **.gpl** — paleta para GIMP
+- **\*-tileset.png** — preview para inspeção rápida *(BG)*
 
-O foco do projeto é **preservar os índices do PNG** (workflow com imagens indexadas) para que o resultado seja previsível no SNES, inclusive quando você trabalha com **múltiplas subpaletas** em BG 4bpp.
+O foco do projeto é **preservar os índices do PNG** (workflow com imagens indexadas), para que o resultado seja previsível no SNES — inclusive quando você usa **múltiplas subpaletas** em BG 4bpp.
 
 ---
 
-### Estrutura esperada do repositório
+### Estrutura do repositório
 
-- `bin/png2snes.js` (CLI)
-- `src/*` (core)
-- `combine-indexed.js` (script auxiliar para combinar pgns indexados separados por paletas para uma imagem final)
+- `bin/png2snes.js` — CLI
+- `src/*` — core
+- `tools/*` — scripts auxiliares (combine, split, bgPriority etc.)
 
 ---
 
 ## Fluxos suportados
 
-### A) BG 4bpp (Mode 1 / BG1-BG2) com múltiplas subpaletas
+### A) BG 4bpp (Mode 1 / BG1–BG2) com múltiplas subpaletas
 
-**Objetivo:** montar um cenário maior usando **várias partes**, onde cada parte tem **16 cores** (1 subpaleta), e no final gerar **um PNG “final”** que **mantém os índices** de cada parte.
+**Objetivo:** montar um cenário maior usando várias partes (cada parte com **16 cores**) e gerar um PNG final indexado preservando índices para o SNES.
 
-#### Passo 1 — Criar partes no GIMP (indexado)
-- Crie cada parte do cenário como **PNG indexado (16 cores)**.
-- Grid 8x8 (tiles do SNES).
-- Cada parte **usa uma subpaleta** (16 cores).
+#### Passo 1 — criar as partes (GIMP)
+- Exporte cada parte como **PNG indexado** (até 16 cores).
+- Use grid **8×8** (tile do SNES).
+- Cada parte deve respeitar uma subpaleta (16 cores).
 
-Exemplo de nomes:
-- `arena-part1.png`
-- `arena-part2.png`
-- `arena-part3.png`
+Exemplo:
+- `waterfront-bg1-part1.png`
+- `waterfront-bg1-part2.png`
+- ...
 
-#### Passo 2 — Unir as partes preservando índices (combine-indexed)
-O GIMP pode **reordenar/remapear índices** quando você “achata” camadas e exporta, e isso quebra a consistência (o pixel continua “igual”, mas o **índice** muda).
+#### Passo 2 — combinar as partes preservando índices (combine-indexed)
+O GIMP pode remapear índices ao achatar/exportar camadas. Use o **combine-indexed** para manter os índices.
 
-Ex de uso: node combine-indexed.js bgs/warrior-shrine-bg1-part1.png bgs/warrior-shrine-bg1-part2.png bgs/warrior-shrine-bg1-part3.png bgs/warrior-shrine-bg1-part4.png
-
-Use o script `combine-indexed.js` (ou equivalente no toolchain) para gerar:
-
-- `arena-final.png` (indexado, preservando os índices das partes)
-
-#### Passo 3 — Rodar png2snes (BG, 4bpp, Mode 1)
-Exemplo realista:
+Modo curto (recomendado):
 
 ```bash
-npx png2snes arena-final.png \
+npm run png:combine -- --dir to-convert --stem waterfront-bg1
+
+Convenção:
+
+Entradas: to-convert/<stem>-partN.png
+
+Saída: to-convert/<stem>-final.png
+
+Passo 3 — converter para SNES (png2snes)
+
+Exemplo:
+
+npx png2snes to-convert/waterfront-bg1-final.png \
   --tipo bg \
   --bpp 4 \
   --modo 1 \
   --bg-pal-base 2 \
   --tile-size 8x8 \
   --dedupe h \
-  --out-dir out/arena \
+  --out-dir to-convert \
   --no-interactive
-Como o BG 4bpp funciona aqui (pontos importantes)
-CHR (tiles): os pixels do tile usam índice local 0..15 (4bpp).
 
-MAP (tilemap): cada tile carrega também o número da subpaleta (0..7 para BG), e o --bg-pal-base aplica um offset nesse número.
+Como o BG 4bpp funciona aqui
+
+CHR (.chr): os pixels do tile usam índice local 0..15 (4bpp)
+
+MAP (.map): cada tile carrega também o número da subpaleta (0..7)
+--bg-pal-base aplica um offset nesse número.
 
 Por que existe --bg-pal-base?
-Para você não “bater” em subpaletas reservadas (ex.: HUD em BG3). Ex.: usar --bg-pal-base 2 desloca seu BG para subpaletas 2.. em vez de 0...
+Para evitar conflito com subpaletas reservadas (ex.: HUD). Ex.: --bg-pal-base 2 desloca o cenário para subpaletas 2.. em vez de 0..
 
 Warning: “tile mistura subpaletas”
-O png2snes em BG 4bpp pode emitir um aviso do tipo:
 
-tile mistura subpaletas
+O png2snes pode avisar que um tile 8×8 mistura índices de subpaletas diferentes. No SNES, um tile 4bpp só pode usar uma subpaleta no MAP, então o resultado tende a ficar errado no hardware.
 
-Isso significa que dentro do mesmo tile 8x8, existem pixels que vêm de subpaletas diferentes (ex.: parte do tile usa índices da subpaleta 1 e parte usa da subpaleta 2). No SNES, um tile 4bpp só pode apontar para uma subpaleta no MAP — então o resultado no hardware tende a ficar errado.
-
-Por que esse warning agora é confiável?
-Porque a detecção passou a usar o índice real do PNG (não “igualdade de cor”/pipeta/Select by Color). Ou seja: se ele acusar mistura, é porque os índices realmente vêm de subpaletas diferentes.
+A detecção é confiável porque usa o índice real do PNG (não heurística por cor).
 
 B) Sprite 4bpp
-Objetivo: um PNG indexado com 16 cores (1 paleta) para gerar tiles e paleta de OBJ.
 
-Entrada: 1 PNG (16 cores indexadas)
-
+Entrada: PNG indexado com 16 cores
 Saída: .chr + .pal
-
 Não gera .map (sprites não usam tilemap BG)
 
 Exemplo:
@@ -96,22 +97,21 @@ npx png2snes scorpion.png \
   --bpp 4 \
   --tile-size 8x8 \
   --dedupe none \
-  --out-dir out/scorpion \
+  --out-dir to-convert \
   --no-interactive
+
 Notas:
 
-Para sprite, o tool força/assume --dedupe none (dedupe é focado em BG/tilemap).
+Para sprite, o tool força --dedupe none.
 
-Não existe prompt de subpaleta (subpaleta é escolha de CGRAM/OBJ no seu código SNES, na hora de escrever em CGRAM).
+Subpaleta/offset de OBJ é definida no seu código SNES ao escrever CGRAM.
 
 C) BG 8bpp (Mode 3)
-Objetivo: BG 8bpp (até 256 cores) para Mode 3.
 
 Entrada: PNG indexado até 256 cores
-
 Saída: .chr + .map + .pal
 
-O MAP não usa bits de paleta por tile (em 8bpp não existe “subpaleta por tile” como no 4bpp).
+No 8bpp, o MAP não usa bits de subpaleta por tile.
 
 Exemplo:
 
@@ -121,87 +121,74 @@ npx png2snes title.png \
   --modo 3 \
   --tile-size 8x8 \
   --dedupe simple \
-  --out-dir out/title \
+  --out-dir to-convert \
   --no-interactive
-Flags / CLI
-Principais flags
+VRAM Layout Helper (BG)
+
+Quando --tipo bg, o png2snes imprime automaticamente um bloco pronto para copiar/colar no assembly:
+
+VRAM_BG1_TILES, VRAM_BG1_MAP, VRAM_BG2_TILES, VRAM_BG2_MAP
+
+REG_BG12NBA ($210B), REG_BG1SC ($2107), REG_BG2SC ($2108)
+
+Desativar
+
+Por padrão imprime. Para desativar:
+
+npx png2snes arena-final.png --tipo bg --no-print-vram-layout
+Regras usadas (resumo)
+
+VRAM_BG1_TILES fixo: $0000
+
+VRAM_BG1_MAP default: $6800 (64×64 = $2000)
+
+VRAM_BG2_MAP fixo: $F000 (64×32 = $1000)
+
+VRAM_BG2_TILES = alignUp(BG1_MAP_END, $2000)
+
+Auto-ajuste do BG1_MAP (quando CHR invade o map)
+
+Se o BG1_CHR_SIZE crescer a ponto de encostar/invadir o map default, o helper move automaticamente:
+
+VRAM_BG1_MAP = alignUp(endChr, $0800) (unidade do BGxSC)
+
+CLI / Flags principais
+
 --tipo bg|sprite
-Define o fluxo (BG gera map; sprite não).
 
 --bpp 2|4|8
-Bits por pixel do tile.
 
 --modo 1|3|7
-Modo alvo (explicação prática do toolchain):
-
-4bpp BG → normalmente Mode 1
-
-8bpp BG → aqui é Mode 3
-
-Mode 7 reservado/para usos específicos (depende do seu pipeline/uso)
 
 --bg-pal-base 0..7 (somente BG 4bpp)
-Offset de subpaleta aplicado ao MAP. Útil para evitar sobrescrever HUD.
 
 --tile-size 8x8|16x16
-Define como o PNG é fatiado para extração (tiles 8x8 ou blocos 16x16).
-(Para SNES o tile base é 8x8; 16x16 é útil em pipelines que geram metatiles.)
 
---dedupe none|simple|h|v|full
-Deduplicação de tiles (normalmente útil em BG):
-
-none: sem dedupe
-
-simple: remove tiles idênticos (sem flips)
-
-h: dedupe considerando flip horizontal
-
-v: dedupe considerando flip vertical
-
-full: dedupe considerando ambos flips
-Limitação atual: dedupe é voltado a BG/tilemap; sprite força none.
+--dedupe none|simple|h|v|full (sprite força none)
 
 --no-interactive
-Roda sem prompts (bom para scripts/CI). Use junto com as flags necessárias.
 
---out-dir <pasta>
-Pasta de saída.
+--out-dir <pasta> (saída vai para <out-dir>/converted)
 
-Exemplos (copiar e colar)
-BG 4bpp com subpaletas e offset (evitar HUD):
+--no-print-vram-layout (BG)
 
-npx png2snes arena-final.png \
-  --tipo bg --bpp 4 --modo 1 --bg-pal-base 2 \
-  --tile-size 8x8 --dedupe h \
-  --out-dir out/arena --no-interactive
-Sprite 4bpp (sem map):
-
-npx png2snes scorpion.png \
-  --tipo sprite --bpp 4 \
-  --tile-size 8x8 --dedupe none \
-  --out-dir out/scorpion --no-interactive
-BG 8bpp Mode 3 (sem paleta por tile no map):
-
-npx png2snes title.png \
-  --tipo bg --bpp 8 --modo 3 \
-  --tile-size 8x8 --dedupe simple \
-  --out-dir out/title --no-interactive
-Outputs
+Outputs (formatos)
 .chr (tiles)
-4bpp: 32 bytes por tile 8x8
 
-8bpp: 64 bytes por tile 8x8
+4bpp: 32 bytes por tile 8×8
 
-Formato planar SNES (pronto para DMA em VRAM).
+8bpp: 64 bytes por tile 8×8
+Formato planar SNES (pronto para DMA).
 
 .map (tilemap)
+
 Palavras 16-bit little-endian (SNES BG map entry).
 
-BG 4bpp (Mode 1/2 etc.) usa:
+BG 4bpp:
 
-bits 0–9: índice do tile (0–1023)
+bits 0–9: tile id (0–1023)
 
-bits 10–12: palette/subpaleta (0–7 para BG)
+bits 10–12: palette/subpaleta (0–7)
 
 bit 13: priority
 
@@ -211,248 +198,111 @@ bit 15: vflip
 
 BG 8bpp (Mode 3):
 
-não usa “bits de paleta por tile” (não existe subpaleta por tile como no 4bpp)
+não usa bits de subpaleta por tile
 
-.pal (paleta SNES)
-Paleta compacta: inclui apenas as cores usadas.
+.pal
 
-Ordem sagrada: segue a ordem/índices do PNG indexado.
+paleta compacta (somente cores usadas)
 
-Cada cor é armazenada como SNES BGR555 em 2 bytes (little-endian).
+ordem segue a ordem/índices do PNG indexado
+
+formato SNES BGR555 (2 bytes little-endian por cor)
 
 .gpl
-Export para inspeção/edição no GIMP (útil para validar ordem/índices).
 
-*-tileset.png (preview)
-Imagem gerada para inspecionar rapidamente o tileset/tilemap e identificar erros de índice/dedupe.
+Paleta para inspeção no GIMP.
 
-Observações SNES importantes
-Por que bg-pal-base=2 costuma ser útil
-Em muitos jogos, BG3 é usado para HUD e ocupa subpaletas baixas (ex.: 0–1).
-Ao colocar seu cenário em base 2, você reduz o risco de sobrescrever paletas que o HUD espera.
+*-tileset.png
 
-Planejamento de DMA para CGRAM (BG 4bpp)
-Cada subpaleta BG tem 16 cores.
+Preview rápido para inspecionar tiles/tilemap.
 
-Para escrever sua paleta em CGRAM com offset:
+Tools (scripts auxiliares)
 
-comece em palBase * 16 (em “cor”, não em byte)
+Estas ferramentas são opcionais e fazem parte do workflow de backgrounds.
 
-exemplo: bg-pal-base=2 → começar na cor 32 (2 * 16)
+bgPriority (patch de prioridade no tilemap)
 
-Limites
-BG 4bpp: até 8 subpaletas (0..7) → 128 cores no total (8 * 16)
+Aplica o bit 13 (priority) em um .map SNES usando uma máscara PNG.
 
-Mode 3 (8bpp): até 256 cores
+Uso curto:
+
+npm run bg:priority -- --dir to-convert/converted --stem pit-bg2
+
+Convenção:
+
+PNG: to-convert/converted/<stem>.png
+
+MAP: to-convert/converted/<stem>.map
+
+MASK: to-convert/converted/<stem>-priority.png
+
+OUT: to-convert/converted/<stem>-pri.map
+
+combine-indexed
+
+Junta partes PNG indexadas (até 16 cores cada) preservando índices/paletas e gerando um *-final.png (indexado 8bpp até 256 cores).
+
+Uso curto:
+
+npm run png:combine -- --dir to-convert --stem waterfront-bg1
+
+Convenção:
+
+Partes: to-convert/<stem>-partN.png
+
+Saída: to-convert/<stem>-final.png
+
+splitIndexedByEmptyTiles
+
+Split de uma folha PNG indexada em vários PNGs indexados, separando por “ilhas” de tiles 8×8 não-vazios (vazio = todos os pixels == sepIndex).
+
+Uso curto:
+
+npm run png:split -- --dir to-convert --stem river-animation --sepIndex 0
+
+Mais detalhes em tools/README.md.
+
+Observações (Linux)
+
+Alguns desktops podem identificar .chr como áudio (heurística por conteúdo). O arquivo continua correto (binário).
 
 Requisitos e instalação
+
 Node.js >= 18
 
-Instalar deps:
-
 npm i
+
 Rodar via repo:
 
 node bin/png2snes.js <arquivo.png> [flags...]
-Rodar via npx (quando publicado/instalável no seu ambiente):
+
+Rodar via npx:
 
 npx png2snes <arquivo.png> [flags...]
-Toolchain auxiliar (opcional)
-combine-indexed.js
-Use para combinar PNGs indexados mantendo índices (evita remap do GIMP ao exportar).
+English
+Summary
 
-## English
-Short description
 png2snes converts indexed PNG assets into SNES-ready files:
 
 .chr (tiles)
 
-.map (tilemap)
+.map (tilemap, BG only)
 
-.pal (SNES palette)
+.pal (SNES palette, BGR555)
 
-.gpl (GIMP palette export)
+.gpl (GIMP palette)
 
-*-tileset.png (quick preview)
+*-tileset.png (quick preview, BG)
 
-The main focus is preserving PNG indices (indexed workflow) so results stay deterministic on SNES hardware—especially for multi-subpalette BG 4bpp pipelines.
+The main focus is preserving PNG indices so results remain deterministic on SNES hardware, including multi-subpalette BG 4bpp workflows.
 
-Expected repository layout
-bin/png2snes.js (CLI)
+Requirements
 
-src/* (core)
-
-combine-indexed.js (helper script; may live in combine-pngs/)
-
-Supported workflows
-A) BG 4bpp (Mode 1 / BG1-BG2) with multiple subpalettes
-Goal: build a larger background from multiple 16-color indexed parts, then produce one final indexed PNG that preserves indices.
-
-Step 1 — Create parts in GIMP (indexed)
-Each part is an indexed PNG (16 colors).
-
-8x8 grid (SNES tile size).
-
-Each part uses one subpalette (16 colors).
-
-Step 2 — Combine while preserving indices (combine-indexed)
-
-Ex - How to use it: Ex de uso: node combine-indexed.js bgs/warrior-shrine-bg1-part1.png bgs/warrior-shrine-bg1-part2.png bgs/warrior-shrine-bg1-part3.png bgs/warrior-shrine-bg1-part4.png
-
-GIMP may reorder/remap indices when flattening/exporting, which breaks SNES pipelines (pixels look the same but their indices change).
-
-Use combine-indexed.js (or equivalent) to generate:
-
-*-final.png (indexed, indices preserved across parts)
-
-Step 3 — Run png2snes (BG, 4bpp, Mode 1)
-Example:
-
-npx png2snes arena-final.png \
-  --tipo bg \
-  --bpp 4 \
-  --modo 1 \
-  --bg-pal-base 2 \
-  --tile-size 8x8 \
-  --dedupe h \
-  --out-dir out/arena \
-  --no-interactive
-How BG 4bpp works here
-CHR (tiles): pixels use local indices 0..15 (4bpp).
-
-MAP (tilemap): each tile stores a subpalette id (0..7 for BG), and --bg-pal-base applies an offset to that id.
-
-Why --bg-pal-base?
-To avoid overwriting reserved subpalettes (e.g., HUD). Using --bg-pal-base 2 shifts your BG usage to subpalettes 2.. instead of 0...
-
-Warning: “tile mixes subpalettes”
-The tool can warn that a single 8x8 tile uses indices from multiple subpalettes. On SNES, a 4bpp BG tile can only reference one subpalette in the MAP entry—so rendering will be wrong on hardware.
-
-Why the warning is now reliable:
-Detection uses the actual PNG indices (not “same RGB color” heuristics).
-
-B) Sprite 4bpp
-Goal: one 16-color indexed PNG to generate OBJ tiles and palette.
-
-Input: one PNG (16 colors indexed)
-
-Output: .chr + .pal
-
-No .map output (sprites do not use BG tilemaps)
-
-Example:
-
-npx png2snes scorpion.png \
-  --tipo sprite \
-  --bpp 4 \
-  --tile-size 8x8 \
-  --dedupe none \
-  --out-dir out/scorpion \
-  --no-interactive
-Notes:
-
-Sprite flow forces/assumes --dedupe none.
-
-Subpalette placement is handled later when you DMA your OBJ palette into CGRAM.
-
-C) BG 8bpp (Mode 3)
-Goal: Mode 3 background using up to 256 indexed colors.
-
-Input: indexed PNG up to 256 colors
-
-Output: .chr + .map + .pal
-
-MAP entries do not contain per-tile palette bits (no subpalette per tile in 8bpp Mode 3).
-
-Example:
-
-npx png2snes title.png \
-  --tipo bg \
-  --bpp 8 \
-  --modo 3 \
-  --tile-size 8x8 \
-  --dedupe simple \
-  --out-dir out/title \
-  --no-interactive
-CLI flags
---tipo bg|sprite
-
---bpp 2|4|8
-
---modo 1|3|7 (8bpp is Mode 3 in this toolchain)
-
---bg-pal-base 0..7 (BG 4bpp only)
-
---tile-size 8x8|16x16
-
---dedupe none|simple|h|v|full (sprites force none)
-
---no-interactive
-
---out-dir <dir>
-
-Outputs
-.chr
-4bpp: 32 bytes per 8x8 tile
-
-8bpp: 64 bytes per 8x8 tile
-
-.map
-16-bit little-endian words.
-
-4bpp BG map entry:
-
-bits 0–9 tile id
-
-bits 10–12 palette/subpalette
-
-bit 13 priority
-
-bit 14 hflip
-
-bit 15 vflip
-
-8bpp Mode 3: no per-tile palette bits.
-
-.pal
-Compact (only used colors)
-
-Index order matches the PNG indexed order (do not reorder).
-
-Stored as SNES BGR555, 2 bytes per color (little-endian).
-
-.gpl
-GIMP palette export for inspection/editing.
-
-*-tileset.png
-Quick visual preview to validate indices/dedupe/tile layout.
-
-SNES notes
-bg-pal-base=2 is commonly used to avoid overwriting HUD subpalettes (often on BG3).
-
-CGRAM planning (BG 4bpp):
-
-each BG subpalette = 16 colors
-
-write starting at palBase * 16 (color index)
-
-Limits:
-
-BG 4bpp: 8 subpalettes (128 colors total)
-
-Mode 3 (8bpp): 256 colors
-
-Requirements & install
 Node.js >= 18
 
-Install:
-
+Install / Run
 npm i
-Run from repo:
-
 node bin/png2snes.js <input.png> [flags...]
-Run via npx:
-
 npx png2snes <input.png> [flags...]
-Optional helper scripts
-combine-indexed.js: combine indexed PNGs while preserving indices (recommended for multi-part BG workflows, works great if you split your bgs by palette color, and use it to merge into a final bg).
+
+For tools usage, see tools/README.md.

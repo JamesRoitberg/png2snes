@@ -8,7 +8,10 @@
   "type": "module",
   "scripts": {
     "start": "node bin/png2snes.js",
-    "analyze:map": "node scripts/analyze-map.js"
+    "analyze:map": "node scripts/analyze-map.js",
+    "bg:priority": "node tools/bgPriority.js",
+    "png:combine": "node tools/combine-indexed.js",
+    "png:split": "node tools/splitPng.js"
   },
   "engines": {
     "node": ">=18.0.0"

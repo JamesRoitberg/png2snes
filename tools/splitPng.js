@@ -30,6 +30,11 @@ function parseArgs(argv) {
     tile: 8,
     sepIndex: 0,
     pad: 2,
+    // novo (modo curto)
+    dir: null,
+    stem: null,
+    _outDirSet: false,
+    _nameSet: false,
   };
 
   for (let i = 2; i < argv.length; i++) {
@@ -40,10 +45,27 @@ function parseArgs(argv) {
     else if (a === "--tile") out.tile = Number(argv[++i]);
     else if (a === "--sepIndex") out.sepIndex = Number(argv[++i]);
     else if (a === "--pad") out.pad = Number(argv[++i]);
+    else if (a === "--dir") out.dir = argv[++i];
+    else if (a === "--stem") out.stem = argv[++i];
     else throw new Error(`Arg desconhecido: ${a}`);
   }
 
-  if (!out.inPath) throw new Error("Faltou --in <arquivo.png>");
+  // ---- modo curto: --dir + --stem ----
+  if (out.stem) {
+    const baseDir = out.dir || ".";
+    const stemClean = String(out.stem).endsWith(".png")
+      ? String(out.stem).slice(0, -4)
+      : String(out.stem);
+
+    if (!out.inPath) out.inPath = path.join(baseDir, `${stemClean}.png`);
+    if (!out._outDirSet) out.outDir = baseDir;
+    if (!out._nameSet) out.name = stemClean;
+  }
+// ------------------------------------
+
+  if (!out.inPath) {
+    throw new Error("Faltou --in <arquivo.png> (ou use --dir <dir> --stem <stem>)");
+  }
   if (!Number.isFinite(out.tile) || out.tile <= 0) throw new Error("--tile inválido");
   if (!Number.isFinite(out.sepIndex) || out.sepIndex < 0 || out.sepIndex > 255) throw new Error("--sepIndex inválido");
   if (!Number.isFinite(out.pad) || out.pad < 1) throw new Error("--pad inválido");

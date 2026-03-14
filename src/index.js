@@ -51,6 +51,7 @@ function runVramLayoutHelper({ bpp, bg1Chr, bg1Map, bg2Chr, bg2Map, strict }) {
 
 export async function runPng2Snes(imagePath, options) {
   const inputPath = path.resolve(imagePath);
+  const skipPaletteOutputs = options.skipPaletteOutputs === true;
 
   // ============================================================
   //  NOVO COMPORTAMENTO: gera sempre dentro de /converted
@@ -216,15 +217,17 @@ export async function runPng2Snes(imagePath, options) {
 
   // exports permanecem
   const chrBuffer = writeChr(uniqueTiles, bpp);
-  const palBuffer = writePal(palette);
-  const gplText = writeGpl(palette, `${baseName} (png2snes)`);
+  const palBuffer = skipPaletteOutputs ? null : writePal(palette);
+  const gplText = skipPaletteOutputs ? null : writeGpl(palette, `${baseName} (png2snes)`);
 
   fs.writeFileSync(`${outBase}.chr`, chrBuffer);
   if (tilemap) {
     fs.writeFileSync(`${outBase}.map`, tilemap);
   }
-  fs.writeFileSync(`${outBase}.pal`, palBuffer);
-  fs.writeFileSync(`${outBase}.gpl`, gplText, "utf-8");
+  if (!skipPaletteOutputs) {
+    fs.writeFileSync(`${outBase}.pal`, palBuffer);
+    fs.writeFileSync(`${outBase}.gpl`, gplText, "utf-8");
+  }
 
    // Diagnóstico objetivo (opt-in): imprime histograma/flags do MAP gerado
    if (tilemap && (options.debugMap || process.env.PNG2SNES_DEBUG_MAP === "1")) {
@@ -249,8 +252,10 @@ export async function runPng2Snes(imagePath, options) {
   if (tilemap) {
     console.log("  MAP:", `${outBase}.map`);
   }
-  console.log("  PAL:", `${outBase}.pal`);
-  console.log("  GPL:", `${outBase}.gpl`);
+  if (!skipPaletteOutputs) {
+    console.log("  PAL:", `${outBase}.pal`);
+    console.log("  GPL:", `${outBase}.gpl`);
+  }
   if (tipo !== "sprite") {
     console.log("  TILESET PNG:", tilesetPngPath);
   }

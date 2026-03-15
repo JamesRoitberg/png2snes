@@ -44,7 +44,7 @@ function runVramLayoutHelper({ bpp, bg1Chr, bg1Map, bg2Chr, bg2Map, strict }) {
     if (strict) {
       throw new Error("VRAM layout helper falhou (strict).");
     } else {
-      console.warn("[png2snes] WARN: VRAM layout helper falhou (ignorei).");
+      console.warn("[png2snes] WARN: VRAM layout helper não encontrou um layout válido (ignorei). Veja as mensagens acima.");
     }
   }
 }

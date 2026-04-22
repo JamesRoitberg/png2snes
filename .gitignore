@@ -1,0 +1,13 @@
+# Arquivos de entrada/saída do pipeline de assets
+*.png
+*.chr
+*.pal
+*.gpl
+*.map
+
+# Mantém apenas a estrutura base das pastas de trabalho
+to-convert/*
+!to-convert/.gitkeep
+!to-convert/converted/
+to-convert/converted/*
+!to-convert/converted/.gitkeep

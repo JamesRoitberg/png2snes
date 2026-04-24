@@ -200,6 +200,16 @@ export async function runPng2Snes(imagePath, options) {
   const dedupeMode = options.dedupe || "simple";
   const { uniqueTiles, tileRefs } = dedupeTiles(tilesData, dedupeMode, tipo);
 
+  if (tipo !== "sprite" && uniqueTiles.length > 0x400) {
+    const limit = 0x400;
+    const overflow = uniqueTiles.length - limit;
+    throw new Error(
+      `imagem gerou ${uniqueTiles.length} tile(s) únicos após dedupe; ` +
+        `limite SNES para BG é ${limit} tile(s) (índices 0..1023); ` +
+        `excedeu em ${overflow} tile(s)`
+    );
+  }
+
   let tilemap = null;
 
   if (tipo !== "sprite") {

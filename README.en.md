@@ -61,14 +61,15 @@ node bin/png2snes.js
 
 This is the simplest mode for manual use. It asks for natural inputs such as:
 
-- a PNG file
+- a working directory
+- an optional PNG filename filter
+- a PNG file selection
 - a MAP file
-- a folder
 - a hex color
 
 Whenever possible, the CLI tries to infer:
 
-- directory
+- suggested working directories for each flow
 - stem/base name
 - frame sequence
 - related parts
@@ -140,6 +141,10 @@ The interactive menu covers these flows:
 
 During those flows, the hub tries to:
 
+- suggest `to-convert` for `convert`, `sequence`, `combine`, and `split`
+- suggest `to-convert/converted` for `priority`
+- allow choosing `Another directory...` when needed
+- allow an optional prefix filter before listing PNGs
 - validate basic inputs before execution
 - show previews when it detects multiple files
 - print a short summary before running
@@ -191,6 +196,8 @@ npm run color2snes -- ad1808
 - For 4bpp BG, provide `--bg-pal-base`
 - For sprites, the flow forces `dedupe none`
 - For BG files named with `bg1` and `bg2`, the helper prints a suggested VRAM layout
+- `to-convert/` and `to-convert/converted/` are kept as base workspace folders
+- Working PNGs and generated pipeline files are ignored by Git by default
 
 ## Structure
 
@@ -198,3 +205,5 @@ npm run color2snes -- ad1808
 - `src/`: conversion core and orchestration
 - `tools/`: legacy helper tools
 - `scripts/`: simple support scripts
+- `to-convert/`: base folder for source PNGs and working files
+- `to-convert/converted/`: base folder used as the default pipeline output

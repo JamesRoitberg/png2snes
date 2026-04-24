@@ -61,14 +61,15 @@ node bin/png2snes.js
 
 Esse modo é o caminho mais simples para uso manual. Ele pede entradas naturais, como:
 
-- arquivo PNG
+- diretório de trabalho
+- filtro opcional do arquivo PNG
+- seleção do arquivo PNG
 - arquivo MAP
-- pasta
 - cor hexadecimal
 
 Quando possível, o CLI tenta inferir automaticamente:
 
-- diretório
+- diretórios de trabalho sugeridos por fluxo
 - stem/base name
 - sequência de frames
 - partes relacionadas
@@ -140,6 +141,10 @@ O menu interativo cobre estes fluxos:
 
 Durante esses fluxos, o hub tenta:
 
+- sugerir `to-convert` para `convert`, `sequence`, `combine` e `split`
+- sugerir `to-convert/converted` para `priority`
+- permitir escolher `Outro diretório...` quando necessário
+- permitir um filtro opcional por prefixo antes de listar os PNGs
 - validar entradas básicas antes de rodar
 - mostrar preview quando detectar múltiplos arquivos
 - mostrar um resumo antes da execução
@@ -191,6 +196,8 @@ npm run color2snes -- ad1808
 - Para BG 4bpp, informe `--bg-pal-base`
 - Para sprite, o fluxo força `dedupe none`
 - Para BG com nomes `bg1` e `bg2`, o helper imprime um layout sugerido de VRAM
+- `to-convert/` e `to-convert/converted/` são mantidos como pastas-base de organização
+- PNGs de trabalho e arquivos gerados pelo pipeline ficam ignorados pelo Git por padrão
 
 ## Estrutura
 
@@ -198,3 +205,5 @@ npm run color2snes -- ad1808
 - `src/`: core de conversão e orquestração
 - `tools/`: tools auxiliares legadas
 - `scripts/`: scripts auxiliares simples
+- `to-convert/`: pasta-base para PNGs e arquivos de trabalho
+- `to-convert/converted/`: pasta-base usada como saída padrão do pipeline

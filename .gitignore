@@ -11,3 +11,6 @@ to-convert/*
 !to-convert/converted/
 to-convert/converted/*
 !to-convert/converted/.gitkeep
+
+# Arquivos gerados por ferramentas locais
+.codex

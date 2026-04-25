@@ -96,5 +96,5 @@ Como saber se a direção escolhida faz sentido antes mesmo da implementação c
 ## Próximo passo
 Se aprovado, diga qual deve ser o próximo passo:
 - criar spec
-- testar um protótipo pequeno
-- implementar mudança mínima
+- manter no backlog
+- descartar por enquanto

@@ -90,13 +90,31 @@ Sempre descreva:
 
 ## Fluxo de planejamento antes da implementação
 
-Neste projeto, diferencie sempre três fases:
+Neste projeto, diferencie sempre quatro fases:
 
-1. planejamento
-2. especificação
-3. implementação
+1. backlog
+2. planejamento
+3. especificação
+4. implementação
 
 Não pule direto para código quando ainda houver dúvida sobre o melhor caminho.
+
+### Quando usar backlog
+Use `docs/backlog.md` quando a task ainda for uma ideia futura, algo sem prioridade imediata ou uma melhoria que ainda não está pronta para entrar em planning.
+
+Exemplos:
+- ideia boa para o futuro, mas ainda não é a hora
+- melhoria percebida durante outra task
+- possível ajuste sem direção clara ainda
+- tema que depende de decisão posterior de prioridade
+
+Ao usar backlog:
+
+- não implemente ainda
+- não transforme em código no mesmo passo
+- registre problema, prioridade, status e próximo passo
+- mova para planning quando for hora de discutir direção
+- mova para spec quando a direção já estiver escolhida e o item estiver pronto para implementação segura
 
 ### Quando usar planning
 Use `docs/planning-template.md` quando a task começar como ideia, dúvida de direção ou melhoria com mais de uma solução possível.
@@ -134,7 +152,8 @@ Ao usar spec:
 ### Ordem correta do fluxo
 Siga esta ordem sempre que fizer sentido:
 
-- ideia ou dúvida -> planning
+- ideia futura ou sem prioridade -> backlog
+- backlog ou dúvida de direção -> planning
 - solução escolhida -> spec
 - implementação aprovada -> código
 - validação -> parar
@@ -142,6 +161,7 @@ Siga esta ordem sempre que fizer sentido:
 ### Regra de aprovação
 A menos que o usuário peça explicitamente para seguir direto:
 
+- registre no backlog quando a ideia ainda for futura ou não estiver madura
 - mostre o planning antes de propor implementação quando ainda houver dúvida de direção
 - mostre a spec antes de editar quando a solução já estiver definida
 - só depois implemente
@@ -326,6 +346,7 @@ Nesses casos, entregue primeiro a análise e proponha a próxima etapa em vez de
 Neste repositório:
 
 - primeiro entender
+- depois registrar no backlog quando for ideia futura
 - depois mapear impacto
 - depois decidir o caminho
 - depois especificar

@@ -39,6 +39,15 @@ Quais arquivos, mensagens, retornos ou efeitos ela produz hoje.
 ### Saídas desejadas
 Quais arquivos, mensagens, retornos ou efeitos ela deve produzir após a mudança.
 
+### Quem chama hoje
+Quais comandos, funções, fluxos ou arquivos já usam essa lógica.
+
+### Quem depende hoje
+Quais partes do projeto podem ser afetadas indiretamente por essa mudança.
+
+### Efeitos colaterais e mensagens de erro
+Arquivos gerados, logs, warnings, erros e outros efeitos relevantes do fluxo atual.
+
 ### Impacto
 O que essa mudança pode afetar indiretamente.
 

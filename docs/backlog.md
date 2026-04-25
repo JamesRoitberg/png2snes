@@ -16,6 +16,13 @@ Nao use este arquivo para:
 - Mova para `planning` quando houver duvida de direcao ou mais de uma solucao possivel.
 - Mova para `spec` quando a direcao ja estiver escolhida e a proxima etapa for implementar com seguranca.
 
+## Legenda de status
+
+- `backlog`: item registrado e ainda sem analise detalhada.
+- `analisando`: item em discussao para entender prioridade, escopo ou direcao.
+- `aguardando`: item parado por depender de timing, contexto ou decisao externa.
+- `aprovado`: item aceito para seguir ao proximo passo quando for a hora certa.
+
 ## Campos de cada item
 
 - `titulo`: nome curto da ideia
@@ -34,6 +41,17 @@ Nao use este arquivo para:
 - status:
 - proximo passo:
 - observacoes:
+```
+
+## Exemplo preenchido
+
+```md
+## [BL-001] Exemplo de item
+- problema: descrever rapidamente o que hoje incomoda ou o que pode ser melhorado.
+- prioridade: media
+- status: backlog
+- proximo passo: criar planning
+- observacoes: citar restricoes, comandos, arquivos ou contexto util quando necessario.
 ```
 
 ## Itens
@@ -60,10 +78,3 @@ Adicione novos itens no topo desta secao.
 - status: backlog
 - proximo passo: criar planning
 - observacoes: ideia inicial de escolher `pt-br` ou `en` no inicio do fluxo e depois seguir com o menu atual.
-
-## [BL-001] Exemplo de item
-- problema: descrever rapidamente o que hoje incomoda ou o que pode ser melhorado.
-- prioridade: media
-- status: backlog
-- proximo passo: criar planning
-- observacoes: citar restricoes, comandos, arquivos ou contexto util quando necessario.

@@ -13,6 +13,9 @@ import {
 } from "./discovery.js";
 import { resolveConversionOptions } from "./conversionOptions.js";
 import {
+  COMBINE_TYPES,
+  DEFAULT_COMBINE_TYPE,
+  describeCombineType,
   printEquivalentCommand,
   printPreview,
   printSummary,
@@ -63,6 +66,14 @@ function buildConversionCommand(command, inputPath, options) {
   }
 
   args.push("--no-interactive");
+  return args;
+}
+
+function buildCombineCommand(inputPath, combineType) {
+  const args = ["png2snes", "combine", inputPath];
+  if (combineType !== DEFAULT_COMBINE_TYPE) {
+    args.push("--combine-type", combineType);
+  }
   return args;
 }
 
@@ -223,6 +234,26 @@ async function selectPngFileFromDirectory({
   return selectedFile;
 }
 
+async function selectCombineType() {
+  const { combineType } = await inquirer.prompt({
+    type: "list",
+    name: "combineType",
+    message: "Qual tipo de combine usar?",
+    choices: [
+      {
+        name: "1. Cenário normal BG1/BG2 - 4bpp, 16 cores por parte",
+        value: COMBINE_TYPES.BG4_16,
+      },
+      {
+        name: "2. BG3/HUD/Textos - 2bpp, 4 cores por parte",
+        value: COMBINE_TYPES.BG3_2BPP_4,
+      },
+    ],
+  });
+
+  return combineType;
+}
+
 async function runInteractiveConvert() {
   const inputPath = validatePngFile(await selectPngFileFromDirectory({
     suggestedDir: "to-convert",
@@ -282,6 +313,7 @@ async function runInteractiveSequence() {
 }
 
 async function runInteractiveCombine() {
+  const combineType = await selectCombineType();
   const inputPath = validatePngFile(await selectPngFileFromDirectory({
     suggestedDir: "to-convert",
     suggestedLabel: "to-convert",
@@ -300,13 +332,14 @@ async function runInteractiveCombine() {
     ["Arquivo informado", inputPath],
     ["Stem", combineInfo.stem],
     ["Partes", combineInfo.parts.length],
+    ["Tipo", describeCombineType(combineType)],
     ["Saída", combineInfo.outPath],
   ]);
 
   if (!(await confirmExecution())) return false;
 
-  runCombineFlow({ parts: combineInfo.parts, outPath: combineInfo.outPath });
-  printEquivalentCommand(["png2snes", "combine", inputPath]);
+  runCombineFlow({ parts: combineInfo.parts, outPath: combineInfo.outPath, combineType });
+  printEquivalentCommand(buildCombineCommand(inputPath, combineType));
   return true;
 }
 

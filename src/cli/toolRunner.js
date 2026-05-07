@@ -5,6 +5,34 @@ import { fileURLToPath } from "node:url";
 import { runPng2Snes } from "../index.js";
 import { runSequence } from "../sequence.js";
 import { analyzeMapBuffer } from "../mapDiagnostics.js";
+import { combineBg3Hud2bpp } from "../combineBg3Hud2bpp.js";
+
+export const COMBINE_TYPES = Object.freeze({
+  BG4_16: "bg4-16",
+  BG3_2BPP_4: "bg3-2bpp-4",
+});
+
+export const DEFAULT_COMBINE_TYPE = COMBINE_TYPES.BG4_16;
+
+export function normalizeCombineType(combineType = DEFAULT_COMBINE_TYPE) {
+  const normalized = String(combineType || DEFAULT_COMBINE_TYPE).trim();
+  if (Object.values(COMBINE_TYPES).includes(normalized)) {
+    return normalized;
+  }
+
+  throw new Error(
+    `combine-type inválido: ${combineType}. Use ${Object.values(COMBINE_TYPES).join(" ou ")}.`,
+  );
+}
+
+export function describeCombineType(combineType = DEFAULT_COMBINE_TYPE) {
+  const normalized = normalizeCombineType(combineType);
+  if (normalized === COMBINE_TYPES.BG3_2BPP_4) {
+    return "BG3/HUD/Textos - 2bpp, 4 cores por parte";
+  }
+
+  return "Cenário normal BG1/BG2 - 4bpp, 16 cores por parte";
+}
 
 function resolveToolPath(relativePath) {
   return fileURLToPath(new URL(relativePath, import.meta.url));
@@ -68,7 +96,14 @@ export async function runSequenceFlow({ sequenceInfo, options }) {
   await runSequence({ sequenceInfo, options });
 }
 
-export function runCombineFlow({ parts, outPath }) {
+export function runCombineFlow({ parts, outPath, combineType = DEFAULT_COMBINE_TYPE }) {
+  const normalizedCombineType = normalizeCombineType(combineType);
+
+  if (normalizedCombineType === COMBINE_TYPES.BG3_2BPP_4) {
+    combineBg3Hud2bpp({ parts, outPath });
+    return;
+  }
+
   const scriptPath = resolveToolPath("../../tools/combine-indexed.js");
   const args = [];
 

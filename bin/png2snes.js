@@ -15,6 +15,8 @@ import {
 } from "../src/cli/discovery.js";
 import { openMainMenu } from "../src/cli/menu.js";
 import {
+  DEFAULT_COMBINE_TYPE,
+  describeCombineType,
   printPreview,
   printSummary,
   runAnalyzeMapFlow,
@@ -112,22 +114,28 @@ function addHubCommands(program) {
   program
     .command("combine <file>")
     .description("Combina automaticamente partes relacionadas a partir de um arquivo partN.png.")
-    .action((file) => {
+    .option("--combine-type <type>", "tipo de combine: bg4-16 ou bg3-2bpp-4", DEFAULT_COMBINE_TYPE)
+    .action((file, opts) => {
       try {
+        const combineType = opts.combineType || DEFAULT_COMBINE_TYPE;
         const combineInfo = inferCombineFromPart(file);
         printPreview(
           "Preview das partes detectadas",
           combineInfo.parts.map((part) => part.file),
           combineInfo.warnings,
         );
-        printSummary("Resumo da combinação", [
+        const summary = [
           ["Arquivo informado", validatePngFile(file, "Parte PNG")],
           ["Stem", combineInfo.stem],
           ["Partes", combineInfo.parts.length],
           ["Saída", combineInfo.outPath],
-        ]);
+        ];
+        if (combineType !== DEFAULT_COMBINE_TYPE) {
+          summary.splice(3, 0, ["Tipo", describeCombineType(combineType)]);
+        }
+        printSummary("Resumo da combinação", summary);
 
-        runCombineFlow({ parts: combineInfo.parts, outPath: combineInfo.outPath });
+        runCombineFlow({ parts: combineInfo.parts, outPath: combineInfo.outPath, combineType });
       } catch (err) {
         handleCliError(err);
       }

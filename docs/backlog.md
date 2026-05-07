@@ -22,14 +22,15 @@ Nao use este arquivo para:
 - `analisando`: item em discussao para entender prioridade, escopo ou direcao.
 - `aguardando`: item parado por depender de timing, contexto ou decisao externa.
 - `aprovado`: item aceito para seguir ao proximo passo quando for a hora certa.
+- `done`: item concluido, validado e separado dos itens em aberto.
 
 ## Campos de cada item
 
 - `titulo`: nome curto da ideia
 - `problema`: dor atual ou oportunidade
 - `prioridade`: baixa, media ou alta
-- `status`: backlog, analisando, aguardando ou aprovado
-- `proximo passo`: manter no backlog, criar planning, criar spec ou descartar
+- `status`: backlog, analisando, aguardando, aprovado ou done
+- `proximo passo`: manter no backlog, criar planning, criar spec, implementar, descartar ou concluido
 - `observacoes`: contexto curto, restricoes ou links para arquivos relevantes
 
 ## Modelo
@@ -54,16 +55,16 @@ Nao use este arquivo para:
 - observacoes: citar restricoes, comandos, arquivos ou contexto util quando necessario.
 ```
 
-## Itens
+## Itens em aberto
 
 Adicione novos itens no topo desta secao.
 
-## [BL-008] Converter BG3/HUD 2bpp com subpaletas de 4 cores
-- problema: PNGs BG3/HUD gerados pelo combine 2bpp podem ter 8, 12, 16 ou ate 32 cores em blocos de 4, mas a conversao atual rejeita BG 2bpp com mais de 4 cores totais.
-- prioridade: alta
-- status: aprovado
-- proximo passo: criar spec
-- observacoes: planning criado em `docs/planning-bg3-2bpp-conversion.md`; spec criada em `docs/spec-bg3-2bpp-conversion.md`; direcao recomendada e permitir, somente para BG `bpp=2`, subpaletas de 4 cores com `bg-pal-base`, mantendo sprites 2bpp limitados a 4 cores e preservando BG 4bpp atual.
+## [BL-009] Remover alias legado png2snes
+- problema: apos o rename para `konvert2snes`, o alias legado `png2snes` deve continuar temporariamente por compatibilidade, mas a meta futura e remover codigo, referencias e comandos antigos para evitar duplicidade permanente.
+- prioridade: baixa
+- status: backlog
+- proximo passo: criar planning
+- observacoes: depende da conclusao da BL-003 e de um periodo de transicao; avaliar remocao do alias no `package.json`, possivel renome do arquivo em `bin/`, limpeza de docs de compatibilidade e ajustes de mensagens/comandos que ainda mencionem `png2snes`.
 
 ## [BL-007] Perguntar se deve aplicar prioridade apos conversao
 - problema: depois de converter um BG para SNES e exibir o resumo/diagnostico de VRAM, o usuario precisa voltar manualmente ao menu para aplicar prioridade de BG, mesmo quando esse e um proximo passo comum do fluxo.
@@ -96,9 +97,9 @@ Adicione novos itens no topo desta secao.
 ## [BL-003] Renomear projeto para konvert2snes e revisar versao inicial
 - problema: foi encontrada outra ferramenta com o nome `png2snes`, o que pode gerar conflito de identidade, documentacao e uso do comando.
 - prioridade: alta
-- status: backlog
-- proximo passo: criar planning
-- observacoes: ideia de trocar referencias de `png2snes` para `konvert2snes` e revisar a versao atual `2.0.0` para `1.0.0` ou algum numero que deixe claro o estado beta; o impacto provavelmente inclui `package.json`, comando binario, docs, mensagens do CLI e referencias textuais no projeto.
+- status: aprovado
+- proximo passo: implementar
+- observacoes: planning criado em `docs/planning-rename-konvert2snes.md`; spec criada em `docs/spec-rename-konvert2snes.md`; decisao aprovada e seguir com a Opcao B, renomeando a identidade principal para `konvert2snes`, revisando a versao para `1.0.0` e mantendo `png2snes` como alias legado temporario. A remocao futura do legado foi registrada na BL-009.
 
 ## [BL-002] Suporte inicial a interface em ingles
 - problema: o CLI hoje funciona em portugues e nao oferece uma opcao de uso em ingles.
@@ -106,3 +107,21 @@ Adicione novos itens no topo desta secao.
 - status: backlog
 - proximo passo: criar planning
 - observacoes: ideia inicial de escolher `pt-br` ou `en` no inicio do fluxo e depois seguir com o menu atual.
+
+## Itens concluidos
+
+Mova para esta secao tarefas finalizadas, mantendo as tarefas em aberto separadas do que ja foi entregue.
+
+## [BL-010] Corrigir BG3 2bpp usando subpaleta errada
+- problema: ao converter o BG3 do temple para SNES em `2 bpp`, o indice/subpaleta escolhido no CLI nao estava sendo respeitado no resultado da ROM; caso observado: usuario escolheu usar o indice/base `1` da paleta, mas o resultado aparente no SNES estava usando `2`, quebrando as cores.
+- prioridade: alta
+- status: done
+- proximo passo: concluido
+- observacoes: investigado que o MAP/asset gerado pelo `png2snes` estava coerente com o contrato atual: `--bg-pal-base 1` desloca os grupos do PNG para subpaletas `1..4` em BG3 2bpp. A correcao validada na ROM foi usar a mesma abordagem de BG1/BG2, mas com tamanho de subpaleta 2bpp: carregar a paleta BG3 em `STAGE_BG3_CGADD = (1 * 4)`, sem padding de cores e sem reconverter os assets. Validado pelo usuario na ROM.
+
+## [BL-008] Converter BG3/HUD 2bpp com subpaletas de 4 cores
+- problema: PNGs BG3/HUD gerados pelo combine 2bpp podiam ter 8, 12, 16 ou ate 32 cores em blocos de 4, mas a conversao rejeitava BG 2bpp com mais de 4 cores totais.
+- prioridade: alta
+- status: done
+- proximo passo: concluido
+- observacoes: planning criado em `docs/planning-bg3-2bpp-conversion.md`; spec criada em `docs/spec-bg3-2bpp-conversion.md`; verificado no codigo que BG `bpp=2` agora usa `bg-pal-base`, aceita multiplas subpaletas de 4 cores, preserva sprite 2bpp limitado a 4 cores, valida range de subpaleta e gera preview 2bpp. Smoke test validado com `node bin/png2snes.js convert to-convert/temple-bg3-final.png --tipo bg --bpp 2 --tile-size 8x8 --dedupe h --bg-pal-base 1 --out-dir /tmp/png2snes-bl008-check --no-print-vram-layout --debug-map`, gerando `.chr`, `.map`, `.pal`, `.gpl` e `-tileset.png`. Bug especifico de subpaleta observada no temple segue separado na BL-010.

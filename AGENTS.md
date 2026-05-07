@@ -115,6 +115,9 @@ Ao usar backlog:
 - registre problema, prioridade, status e próximo passo
 - mova para planning quando for hora de discutir direção
 - mova para spec quando a direção já estiver escolhida e o item estiver pronto para implementação segura
+- ao concluir uma tarefa registrada no backlog, atualize `docs/backlog.md` na mesma etapa de fechamento
+- tarefas concluídas devem ficar com `status: done`, `proximo passo: concluido` e uma observação curta do que foi entregue/validado
+- mantenha tarefas concluídas em uma área visivelmente separada das tarefas em aberto; não deixe itens finalizados misturados no to do
 
 ### Quando usar planning
 Use `docs/planning-template.md` quando a task começar como ideia, dúvida de direção ou melhoria com mais de uma solução possível.
@@ -352,6 +355,7 @@ Neste repositório:
 - depois especificar
 - depois mudar pouco
 - depois validar
+- depois atualizar o backlog quando a tarefa veio dele, movendo itens concluídos para a área de done
 - depois parar
 
 Sempre que possível:

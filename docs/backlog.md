@@ -58,6 +58,34 @@ Nao use este arquivo para:
 
 Adicione novos itens no topo desta secao.
 
+## [BL-008] Converter BG3/HUD 2bpp com subpaletas de 4 cores
+- problema: PNGs BG3/HUD gerados pelo combine 2bpp podem ter 8, 12, 16 ou ate 32 cores em blocos de 4, mas a conversao atual rejeita BG 2bpp com mais de 4 cores totais.
+- prioridade: alta
+- status: aprovado
+- proximo passo: criar spec
+- observacoes: planning criado em `docs/planning-bg3-2bpp-conversion.md`; spec criada em `docs/spec-bg3-2bpp-conversion.md`; direcao recomendada e permitir, somente para BG `bpp=2`, subpaletas de 4 cores com `bg-pal-base`, mantendo sprites 2bpp limitados a 4 cores e preservando BG 4bpp atual.
+
+## [BL-007] Perguntar se deve aplicar prioridade apos conversao
+- problema: depois de converter um BG para SNES e exibir o resumo/diagnostico de VRAM, o usuario precisa voltar manualmente ao menu para aplicar prioridade de BG, mesmo quando esse e um proximo passo comum do fluxo.
+- prioridade: media
+- status: backlog
+- proximo passo: criar planning
+- observacoes: ideia inicial para, ao final do fluxo de conversao interativo, depois do resumo atual de VRAM, perguntar se o usuario quer rodar a opcao 5 do menu, `Aplicar prioridade de BG`; opcoes simples `sim` ou `nao`; se escolher `sim`, seguir para o fluxo de priority usando o BG recem-convertido como base quando for possivel inferir PNG/MAP/mascara. Avaliar impacto em `src/cli/menu.js`, `src/cli/toolRunner.js` e no retorno de caminhos gerados pela conversao, preservando o comportamento atual quando o usuario escolher `nao`.
+
+## [BL-006] Perguntar se deve converter frames apos split
+- problema: depois de splitar um cenario ou sheet em varios frames PNG, o usuario precisa iniciar manualmente a conversao de animacao por sequencia de frames, mesmo quando esse e o proximo passo natural do fluxo.
+- prioridade: media
+- status: backlog
+- proximo passo: criar planning
+- observacoes: ideia inicial para, ao final do fluxo de split interativo, perguntar se o usuario quer usar a opcao 2 do menu, `Converter animacao por sequencia de frames`; opcoes simples `sim` ou `nao`; se escolher `sim`, seguir para o fluxo de sequence usando um dos frames gerados como entrada. Avaliar impacto em `src/cli/menu.js` e `src/cli/toolRunner.js`, preservando o split atual e sem mudar sequence/conversao automaticamente sem confirmacao.
+
+## [BL-005] Perguntar se deve converter PNG final apos combine
+- problema: depois de combinar partes em um PNG final, o usuario precisa iniciar manualmente a conversao para SNES em outro passo, mesmo quando o proximo fluxo natural e converter a imagem gerada.
+- prioridade: media
+- status: backlog
+- proximo passo: criar planning
+- observacoes: ideia inicial para, ao final do fluxo de combine interativo, perguntar se o usuario quer converter o PNG combinado para SNES; opcoes simples `sim` ou `nao`; se escolher `sim`, seguir para a opcao 1 do menu/fluxo de conversao usando o PNG final gerado como entrada. Avaliar impacto em `src/cli/menu.js` e `src/cli/toolRunner.js`, preservando o combine atual e sem acoplar convert 2bpp antes da proxima decisao.
+
 ## [BL-004] Versionamento por Conventional Commits
 - problema: a versao atual do projeto nao segue automaticamente o tipo de mudanca entregue, o que dificulta manter um versionamento previsivel para releases pequenas, medias ou grandes.
 - prioridade: media

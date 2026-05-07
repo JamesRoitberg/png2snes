@@ -19,7 +19,7 @@ export function addConversionOptions(command) {
     .option("--dedupe <modo>", "deduplicação: none,simple,h,v,full")
     .option(
       "--bg-pal-base <n>",
-      "BG 4bpp: subpaleta base (0..7) aplicada no .map",
+      "BG 2bpp/4bpp: subpaleta base (0..7) aplicada no .map",
       parsePalBase,
     )
     .option("--debug-map", "imprime histograma/flags do .map gerado")
@@ -129,11 +129,11 @@ export async function resolveConversionOptions(opts) {
   let palBase = 0;
   if (typeof opts.bgPalBase !== "undefined") {
     palBase = parsePalBase(opts.bgPalBase);
-  } else if (interactive && tipo === "bg" && resolvedBpp === 4) {
+  } else if (interactive && tipo === "bg" && [2, 4].includes(resolvedBpp)) {
     const res = await inquirer.prompt({
       type: "input",
       name: "palBase",
-      message: "Subpaleta base do BG (0-7). Ex: 2 para não usar 0-1 do HUD",
+      message: "Subpaleta base do BG (0-7). Ex: 1 para reservar a 0",
       default: "0",
       validate: (v) => {
         const n = Number(v);
@@ -152,7 +152,7 @@ export async function resolveConversionOptions(opts) {
     tileSize: answers.tileSize ?? opts.tileSize ?? "8x8",
     spriteSizes: answers.spriteSizes ?? opts.spriteSizes,
     dedupe: answers.dedupe ?? opts.dedupe ?? "simple",
-    ...(tipo === "bg" && resolvedBpp === 4 ? { palBase } : {}),
+    ...(tipo === "bg" && [2, 4].includes(resolvedBpp) ? { palBase } : {}),
     debugMap: Boolean(opts.debugMap),
     printVramLayout: opts.printVramLayout,
   };

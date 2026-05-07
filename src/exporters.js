@@ -74,19 +74,19 @@ export function writeGpl(palette, name = "png2snes") {
 /**
  * Gera um PNG (RGBA) com preview do tileset.
  *
- * CORREÇÃO IMPORTANTE (BG 4bpp + palBase + .pal compacta por subpaletas):
+ * CORREÇÃO IMPORTANTE (BG 2bpp/4bpp + palBase + .pal compacta por subpaletas):
  * - O MAP usa paleta FINAL (já inclui palBase), ex.: 2..5
  * - A .pal gerada é "compacta" em número de subpaletas (ex.: 4 subpaletas => 64 cores),
- *   mas cada subpaleta ainda tem 16 entradas (4bpp => 0..15).
+ *   mas cada subpaleta ainda tem 4 entradas (2bpp) ou 16 entradas (4bpp).
  *
  * Também lida com 2 formatos possíveis de tilePixels em 4bpp:
  * A) local 0..15 (CHR) + tile.srcPalette = subpal (0..7)
  * B) absoluto 0..127 onde abs = sub*16 + local (comum em pipeline interno)
  *
  * Regra usada para renderizar:
- *   palFinal = (palBase + sub) & 7
+ *   palFinal = palBase + sub
  *   palLocal = palFinal - palBase   (converte para bloco local dentro do .pal compacto)
- *   colorIndex = palLocal*16 + local
+ *   colorIndex = palLocal*colorsPerSub + local
  */
 export async function writeTilesetPreview({ tiles, palette, outPath, bpp, palBase = 0 }) {
   const columns = 16;
@@ -97,12 +97,12 @@ export async function writeTilesetPreview({ tiles, palette, outPath, bpp, palBas
   const png = new PNG({ width, height });
 
   const inferredBpp = Number(bpp);
-  if (![4, 8].includes(inferredBpp)) {
-    throw new Error(`writeTilesetPreview: bpp inválido: ${bpp} (esperado 4 ou 8)`);
+  if (![2, 4, 8].includes(inferredBpp)) {
+    throw new Error(`writeTilesetPreview: bpp inválido: ${bpp} (esperado 2, 4 ou 8)`);
   }
 
   const palBaseN = Number(palBase);
-  if (inferredBpp === 4) {
+  if ([2, 4].includes(inferredBpp)) {
     if (!Number.isInteger(palBaseN) || palBaseN < 0 || palBaseN > 7) {
       throw new Error(
         `writeTilesetPreview: palBase inválido/ausente: ${palBase} (esperado 0..7)`
@@ -115,6 +115,10 @@ export async function writeTilesetPreview({ tiles, palette, outPath, bpp, palBas
     throw new Error("writeTilesetPreview: palette.entries vazio");
   }
 
+  const colorsPerSub = inferredBpp === 2 ? 4 : inferredBpp === 4 ? 16 : 256;
+  const localMask = colorsPerSub - 1;
+  const subpalShift = inferredBpp === 2 ? 2 : inferredBpp === 4 ? 4 : 8;
+
   // 4bpp: precisa ser múltiplo de 16 (subpaletas compactas em blocos de 16)
   if (inferredBpp === 4 && entries.length % 16 !== 0) {
     throw new Error(
@@ -122,8 +126,8 @@ export async function writeTilesetPreview({ tiles, palette, outPath, bpp, palBas
     );
   }
 
-  const numSubpals = inferredBpp === 4 ? entries.length / 16 : 1;
-  if (inferredBpp === 4 && (numSubpals < 1 || numSubpals > 8)) {
+  const numSubpals = inferredBpp === 8 ? 1 : Math.ceil(entries.length / colorsPerSub);
+  if ([2, 4].includes(inferredBpp) && (numSubpals < 1 || numSubpals > 8)) {
     throw new Error(
       `writeTilesetPreview: numSubpals inválido: ${numSubpals} (entries=${entries.length})`
     );
@@ -167,24 +171,31 @@ export async function writeTilesetPreview({ tiles, palette, outPath, bpp, palBas
           continue;
         }
 
-        // 4bpp: suportar v local (0..15) ou v absoluto (sub*16+local)
+        // 2bpp/4bpp: suportar v local ou v absoluto (sub*colorsPerSub+local)
         let local;
         let sub;
-        if (v >= 0 && v <= 15) {
+        if (v >= 0 && v <= localMask) {
           local = v;
           sub = srcPal & 7;
         } else {
-          local = v & 0x0f;
-          sub = (v >> 4) & 7;
+          local = v & localMask;
+          sub = (v >> subpalShift) & 7;
         }
 
-        if (local < 0 || local > 15) {
+        if (local < 0 || local > localMask) {
           throw new Error(
-            `writeTilesetPreview: local inválido em 4bpp. v=${v} local=${local}`
+            `writeTilesetPreview: local inválido em ${inferredBpp}bpp. v=${v} local=${local}`
           );
         }
 
-        const palFinal = (palBaseN + sub) & 7;
+        const palFinal = palBaseN + sub;
+        if (palFinal > 7) {
+          throw new Error(
+            `writeTilesetPreview: paleta final fora do range. ` +
+              `sub=${sub} palBase=${palBaseN} palFinal=${palFinal}`
+          );
+        }
+
         const palLocal = palFinal - palBaseN;
 
         if (!Number.isInteger(palLocal) || palLocal < 0 || palLocal >= numSubpals) {
@@ -194,11 +205,11 @@ export async function writeTilesetPreview({ tiles, palette, outPath, bpp, palBas
           );
         }
 
-        colorIndex = palLocal * 16 + local;
+        colorIndex = palLocal * colorsPerSub + local;
 
         if (colorIndex < 0 || colorIndex >= entries.length) {
           throw new Error(
-            `writeTilesetPreview: colorIndex fora do entries em 4bpp. ` +
+            `writeTilesetPreview: colorIndex fora do entries em ${inferredBpp}bpp. ` +
               `colorIndex=${colorIndex}, entries=${entries.length}, palLocal=${palLocal}, local=${local}`
           );
         }

@@ -9,10 +9,12 @@ export function validateTiles({
   tileW,
   tileH,
 }) {
-  // Só faz sentido para BG 4bpp com sub-paletas
-  if (bpp !== 4) return;
+  // Só faz sentido para BG 2bpp/4bpp com sub-paletas
+  if (![2, 4].includes(bpp)) return;
 
   const problematic = [];
+  const localMask = bpp === 2 ? 0x03 : 0x0f;
+  const subpalShift = bpp === 2 ? 2 : 4;
 
   const srcIndices = indices ?? tilesData?.indices ?? null;
 
@@ -23,8 +25,8 @@ export function validateTiles({
   const th = tileH ?? tilesData?.tileH ?? 8;
 
   // Caminho correto (índices reais):
-  // - ignora pixels cujo (idx & 0x0F) == 0 (cor zero pode existir em vários bancos)
-  // - sub = idx >> 4
+  // - ignora pixels cujo indice local == 0 (cor zero pode existir em vários bancos)
+  // - sub = idx >> 2 (2bpp) ou idx >> 4 (4bpp)
   if (srcIndices && imgW && imgH) {
     for (const tile of tilesData.tiles) {
       const x0 = tile.mapX * tw;
@@ -42,10 +44,10 @@ export function validateTiles({
 
           const idx = srcIndices[py * imgW + px] | 0;
 
-          // Regra: ignorar "cor 0" do banco (low nibble == 0), para evitar falso positivo
-          if ((idx & 0x0f) === 0) continue;
+          // Regra: ignorar "cor 0" do banco para evitar falso positivo.
+          if ((idx & localMask) === 0) continue;
 
-          subsSeen.add(idx >> 4);
+          subsSeen.add(idx >> subpalShift);
 
           // Early exit: já misturou
           if (subsSeen.size > 1) break;
@@ -71,12 +73,19 @@ export function validateTiles({
 
   if (!problematic.length) return;
 
-  // Mantém exatamente o formato do warning atual
+  const colorsPerSub = bpp === 2 ? 4 : 16;
+
   console.warn("");
-  console.warn(
-    "[png2snes][BG] Atenção: existem tiles 8×8 que usam cores de mais de uma sub-paleta."
-  );
-  console.warn("O SNES só permite uma sub-paleta por tile de BG.");
+  if (bpp === 4) {
+    console.warn(
+      "[png2snes][BG] Atenção: existem tiles 8×8 que usam cores de mais de uma sub-paleta."
+    );
+  } else {
+    console.warn(
+      "[png2snes][BG 2bpp] Atenção: existem tiles 8×8 que usam cores de mais de uma mini-sub-paleta."
+    );
+  }
+  console.warn(`O SNES só permite uma sub-paleta de ${colorsPerSub} cores por tile de BG.`);
   console.warn("Isso pode causar cores incorretas no jogo.");
   console.warn(`Tiles afetados: ${problematic.length}`);
 

@@ -35,11 +35,12 @@ function getConvertedDir(framePath, outDir) {
   return path.join(baseOutDir, "converted");
 }
 
-function getMaxColors(tipo, bpp) {
+function getMaxColors(tipo, bpp, palBase = 0) {
   if (tipo === "sprite") {
     return bpp === 2 ? 4 : bpp === 4 ? 16 : 256;
   }
-  return bpp === 2 ? 4 : bpp === 4 ? 16 * 8 : 256;
+  const bgPalBase = Number.isInteger(Number(palBase)) ? Number(palBase) : 0;
+  return bpp === 2 ? (8 - bgPalBase) * 4 : bpp === 4 ? 16 * 8 : 256;
 }
 
 function getPaletteSource(options) {
@@ -129,7 +130,7 @@ async function inspectFrame(framePath, options) {
     pixels,
     indices,
     pngPalette,
-    maxColors: getMaxColors(tipo, bpp),
+    maxColors: getMaxColors(tipo, bpp, options.palBase),
     bpp,
     paletteFile: getPaletteSource(options),
     tipo,

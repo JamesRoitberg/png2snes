@@ -49,6 +49,69 @@ function runVramLayoutHelper({ bpp, bg1Chr, bg1Map, bg2Chr, bg2Map, strict }) {
   }
 }
 
+function getBgPalBaseRaw(options) {
+  return (
+    options.palBase ??
+    options.paletaBase ??
+    options.subpaletaBase ??
+    options.subPaletteBase ??
+    options.subpaleta ??
+    options.subPalette
+  );
+}
+
+function validateBgPalBase({ tipo, bpp, options }) {
+  if (tipo !== "bg" || ![2, 4].includes(bpp)) {
+    return 0;
+  }
+
+  const palBaseRaw = getBgPalBaseRaw(options);
+  if (typeof palBaseRaw === "undefined") {
+    throw new Error(`palBase ausente para BG ${bpp}bpp (esperado inteiro 0..7 vindo do CLI).`);
+  }
+
+  const palBase = Number(palBaseRaw);
+  if (!Number.isInteger(palBase) || palBase < 0 || palBase > 7) {
+    throw new Error(`palBase inválido para BG ${bpp}bpp: ${palBaseRaw} (use inteiro 0..7).`);
+  }
+
+  return palBase;
+}
+
+function validateBg2bppPaletteRange({ tilesData, indices, width, height, palBase }) {
+  if (indices && width && height) {
+    for (let i = 0; i < indices.length; i++) {
+      const idx = indices[i] | 0;
+      if ((idx & 0x03) === 0) continue;
+
+      const srcPalette = idx >> 2;
+      const finalPalette = palBase + srcPalette;
+
+      if (finalPalette > 7) {
+        throw new Error(
+          `BG 2bpp usa subpaleta ${srcPalette}, mas bg-pal-base ${palBase} ` +
+            `levaria para ${finalPalette}; o SNES aceita somente 0..7.`
+        );
+      }
+    }
+    return;
+  }
+
+  if (!tilesData?.tiles?.length) return;
+
+  for (const tile of tilesData.tiles) {
+    const srcPalette = typeof tile?.srcPalette === "number" ? tile.srcPalette : 0;
+    const finalPalette = palBase + srcPalette;
+
+    if (finalPalette > 7) {
+      throw new Error(
+        `BG 2bpp usa subpaleta ${srcPalette}, mas bg-pal-base ${palBase} ` +
+          `levaria para ${finalPalette}; o SNES aceita somente 0..7.`
+      );
+    }
+  }
+}
+
 export async function runPng2Snes(imagePath, options) {
   const inputPath = path.resolve(imagePath);
   const skipPaletteOutputs = options.skipPaletteOutputs === true;
@@ -98,26 +161,7 @@ export async function runPng2Snes(imagePath, options) {
   // Mantém compatibilidade: anexa a paleta REAL do PNG ao array de pixels (caso outras partes usem isso)
   pixels.palette = pngPalette;
 
-  if (tipo === "bg" && bpp === 4) {
-    const palBaseRaw =
-       options.palBase ??
-       options.paletaBase ??
-       options.subpaletaBase ??
-       options.subPaletteBase ??
-       options.subpaleta ??
-       options.subPalette;
-     // FALHA ALTO: não aceitar "default 0" silencioso aqui
-     if (typeof palBaseRaw === "undefined") {
-       throw new Error("palBase ausente para BG 4bpp (esperado inteiro 0..7 vindo do CLI).");
-     }
-   }
-
-   const palBase = Number(options.palBase);
-   if (tipo === "bg" && bpp === 4) {
-     if (!Number.isInteger(palBase) || palBase < 0 || palBase > 7) {
-       throw new Error(`palBase inválido para BG 4bpp: ${options.palBase} (use inteiro 0..7).`);
-     }
-  }
+  const palBase = validateBgPalBase({ tipo, bpp, options });
 
   if (width % tileW !== 0 || height % tileH !== 0) {
     throw new Error(
@@ -131,10 +175,10 @@ export async function runPng2Snes(imagePath, options) {
     maxColors = bpp === 2 ? 4 : bpp === 4 ? 16 : 256;
   } else {
     // BG:
-    // - 2bpp: 4 cores
+    // - 2bpp: até 8 subpaletas * 4, respeitando a subpaleta base
     // - 4bpp: até 8 subpaletas * 16 = 128 (no PNG combinado)
     // - 8bpp: 256 cores
-    maxColors = bpp === 2 ? 4 : bpp === 4 ? 16 * 8 : 256;
+    maxColors = bpp === 2 ? (8 - palBase) * 4 : bpp === 4 ? 16 * 8 : 256;
   }
 
   const paletteSource =
@@ -181,7 +225,11 @@ export async function runPng2Snes(imagePath, options) {
     palBase
   });
 
-  // Para BG, validar tiles usando os índices reais (idx >> 4), então passamos indices e geometria.
+  if (tipo === "bg" && bpp === 2) {
+    validateBg2bppPaletteRange({ tilesData, indices, width, height, palBase });
+  }
+
+  // Para BG, validar tiles usando os índices reais, então passamos indices e geometria.
   if (tipo === "bg") {
     validateTiles({
       tilesData,

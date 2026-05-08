@@ -328,16 +328,33 @@ function getConvertedBgPaths(inputPath, options) {
   };
 }
 
+function getPriorityMaskStemCandidates(stem) {
+  const stems = [stem];
+  const partMatch = stem.match(/^(.*?)(?:[-_]?part)\d+$/i);
+  const finalMatch = stem.match(/^(.*?)(?:[-_]final)$/i);
+
+  if (partMatch?.[1]) {
+    stems.push(`${partMatch[1]}-final`);
+    stems.push(partMatch[1]);
+  } else if (finalMatch?.[1]) {
+    stems.push(finalMatch[1]);
+  } else {
+    stems.push(`${stem}-final`);
+  }
+
+  return [...new Set(stems)];
+}
+
 function findPriorityMaskForConvertedBg(inputPath, convertedDir) {
   const resolvedInputPath = path.resolve(inputPath);
   const stem = path.basename(resolvedInputPath, path.extname(resolvedInputPath));
   const inputDir = path.dirname(resolvedInputPath);
-  const candidates = [
-    path.join(inputDir, `${stem}-priority.png`),
-    path.join(inputDir, `${stem}-prio.png`),
-    path.join(convertedDir, `${stem}-priority.png`),
-    path.join(convertedDir, `${stem}-prio.png`),
-  ];
+  const candidates = getPriorityMaskStemCandidates(stem).flatMap((candidateStem) => [
+    path.join(inputDir, `${candidateStem}-priority.png`),
+    path.join(inputDir, `${candidateStem}-prio.png`),
+    path.join(convertedDir, `${candidateStem}-priority.png`),
+    path.join(convertedDir, `${candidateStem}-prio.png`),
+  ]);
 
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
@@ -348,8 +365,11 @@ async function promptPriorityMask() {
     name: "maskPath",
     message: "Não consegui inferir a máscara. Informe o PNG de máscara:",
     validate: (value) => {
+      const raw = String(value || "").trim();
+      if (!raw) return "Informe o PNG de máscara.";
+
       try {
-        validatePngFile(value, "Máscara PNG");
+        validatePngFile(raw, "Máscara PNG");
         return true;
       } catch (err) {
         return err.message;
@@ -357,7 +377,7 @@ async function promptPriorityMask() {
     },
   });
 
-  return validatePngFile(maskPath, "Máscara PNG");
+  return validatePngFile(String(maskPath || "").trim(), "Máscara PNG");
 }
 
 async function promptPriorityMap() {

@@ -77,6 +77,20 @@ function buildCombineCommand(inputPath, combineType) {
   return args;
 }
 
+function buildPriorityCommand({ pngPath, maskPath, mapPath, outPath }) {
+  return [
+    "konvert2snes",
+    "priority",
+    pngPath,
+    "--mask",
+    maskPath,
+    "--map",
+    mapPath,
+    "--out",
+    outPath,
+  ];
+}
+
 function printExamples() {
   console.log("[konvert2snes] Exemplos:");
   console.log("  konvert2snes convert to-convert/tomb-bg2-final.png");
@@ -269,6 +283,141 @@ async function confirmConvertGeneratedPng() {
   return shouldConvert;
 }
 
+async function confirmConvertSplitSequence() {
+  const { shouldConvert } = await inquirer.prompt({
+    type: "list",
+    name: "shouldConvert",
+    message: "Converter a sequência de frames agora?",
+    default: true,
+    choices: [
+      { name: "Sim", value: true },
+      { name: "Não", value: false },
+    ],
+  });
+
+  return shouldConvert;
+}
+
+async function confirmApplyPriorityAfterConvert() {
+  const { shouldApply } = await inquirer.prompt({
+    type: "list",
+    name: "shouldApply",
+    message: "Aplicar prioridade de BG agora?",
+    default: true,
+    choices: [
+      { name: "Sim", value: true },
+      { name: "Não", value: false },
+    ],
+  });
+
+  return shouldApply;
+}
+
+function getConvertedBgPaths(inputPath, options) {
+  const resolvedInputPath = path.resolve(inputPath);
+  const baseOutDir = options.outDir
+    ? path.resolve(options.outDir)
+    : path.dirname(resolvedInputPath);
+  const convertedDir = path.join(baseOutDir, "converted");
+  const stem = path.basename(resolvedInputPath, path.extname(resolvedInputPath));
+
+  return {
+    convertedDir,
+    mapPath: path.join(convertedDir, `${stem}.map`),
+    outPath: path.join(convertedDir, `${stem}-pri.map`),
+  };
+}
+
+function findPriorityMaskForConvertedBg(inputPath, convertedDir) {
+  const resolvedInputPath = path.resolve(inputPath);
+  const stem = path.basename(resolvedInputPath, path.extname(resolvedInputPath));
+  const inputDir = path.dirname(resolvedInputPath);
+  const candidates = [
+    path.join(inputDir, `${stem}-priority.png`),
+    path.join(inputDir, `${stem}-prio.png`),
+    path.join(convertedDir, `${stem}-priority.png`),
+    path.join(convertedDir, `${stem}-prio.png`),
+  ];
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
+}
+
+async function promptPriorityMask() {
+  const { maskPath } = await inquirer.prompt({
+    type: "input",
+    name: "maskPath",
+    message: "Não consegui inferir a máscara. Informe o PNG de máscara:",
+    validate: (value) => {
+      try {
+        validatePngFile(value, "Máscara PNG");
+        return true;
+      } catch (err) {
+        return err.message;
+      }
+    },
+  });
+
+  return validatePngFile(maskPath, "Máscara PNG");
+}
+
+async function promptPriorityMap() {
+  const { mapPath } = await inquirer.prompt({
+    type: "input",
+    name: "mapPath",
+    message: "Não consegui inferir o MAP. Informe o arquivo MAP:",
+    validate: (value) => {
+      try {
+        validateMapFile(value, "MAP");
+        return true;
+      } catch (err) {
+        return err.message;
+      }
+    },
+  });
+
+  return validateMapFile(mapPath, "MAP");
+}
+
+async function runInteractivePriorityKnownContext({
+  pngPath,
+  maskPath,
+  mapPath,
+  outPath,
+  allowMapPrompt = false,
+}) {
+  const resolvedPngPath = validatePngFile(pngPath, "PNG base");
+  const resolvedMaskPath = maskPath
+    ? validatePngFile(maskPath, "Máscara PNG")
+    : await promptPriorityMask();
+  const resolvedMapPath = allowMapPrompt && !validateOptionalFile(mapPath)
+    ? await promptPriorityMap()
+    : validateMapFile(mapPath, "MAP");
+
+  printSummary("Resumo da prioridade de BG", [
+    ["PNG base", resolvedPngPath],
+    ["Mask", resolvedMaskPath],
+    ["MAP", resolvedMapPath],
+    ["Saída", outPath],
+  ]);
+
+  if (!(await confirmExecution())) return false;
+
+  runPriorityFlow({
+    pngPath: resolvedPngPath,
+    maskPath: resolvedMaskPath,
+    mapPath: resolvedMapPath,
+    outPath,
+    layout: "auto",
+  });
+  printEquivalentCommand(buildPriorityCommand({
+    pngPath: resolvedPngPath,
+    maskPath: resolvedMaskPath,
+    mapPath: resolvedMapPath,
+    outPath,
+  }));
+  return true;
+}
+
 async function runInteractiveConvertKnownInput(inputPath, label = "PNG") {
   const resolvedInputPath = validatePngFile(inputPath, label);
   const options = await resolveConversionOptions({ interactive: true });
@@ -286,6 +435,17 @@ async function runInteractiveConvertKnownInput(inputPath, label = "PNG") {
 
   await runConvertFlow({ inputPath: resolvedInputPath, options });
   printEquivalentCommand(buildConversionCommand("convert", resolvedInputPath, options));
+
+  if (options.tipo === "bg" && await confirmApplyPriorityAfterConvert()) {
+    const convertedPaths = getConvertedBgPaths(resolvedInputPath, options);
+    await runInteractivePriorityKnownContext({
+      pngPath: resolvedInputPath,
+      maskPath: findPriorityMaskForConvertedBg(resolvedInputPath, convertedPaths.convertedDir),
+      mapPath: convertedPaths.mapPath,
+      outPath: convertedPaths.outPath,
+    });
+  }
+
   return true;
 }
 
@@ -300,15 +460,9 @@ async function runInteractiveConvert() {
   return runInteractiveConvertKnownInput(inputPath, "PNG");
 }
 
-async function runInteractiveSequence() {
-  const inputPath = validatePngFile(await selectPngFileFromDirectory({
-    suggestedDir: "to-convert",
-    suggestedLabel: "to-convert",
-    directoryMessage: "Escolha o diretório dos frames:",
-    fileMessage: "Escolha um frame da animação:",
-  }), "Frame");
-
-  const sequenceInfo = inferSequenceFromFrame(inputPath);
+async function runInteractiveSequenceKnownFrame(inputPath) {
+  const resolvedInputPath = validatePngFile(inputPath, "Frame");
+  const sequenceInfo = inferSequenceFromFrame(resolvedInputPath);
   printPreview(
     "Preview da sequência detectada",
     sequenceInfo.frames.map((frame) => frame.file),
@@ -317,7 +471,7 @@ async function runInteractiveSequence() {
 
   const options = await resolveConversionOptions({ interactive: true });
   printSummary("Resumo da sequência", [
-    ["Frame informado", inputPath],
+    ["Frame informado", resolvedInputPath],
     ["Diretório", sequenceInfo.dir],
     ["Stem", sequenceInfo.stem],
     ["Frames", sequenceInfo.frames.length],
@@ -328,8 +482,19 @@ async function runInteractiveSequence() {
   if (!(await confirmExecution())) return false;
 
   await runSequenceFlow({ sequenceInfo, options });
-  printEquivalentCommand(buildConversionCommand("sequence", inputPath, options));
+  printEquivalentCommand(buildConversionCommand("sequence", resolvedInputPath, options));
   return true;
+}
+
+async function runInteractiveSequence() {
+  const inputPath = await selectPngFileFromDirectory({
+    suggestedDir: "to-convert",
+    suggestedLabel: "to-convert",
+    directoryMessage: "Escolha o diretório dos frames:",
+    fileMessage: "Escolha um frame da animação:",
+  });
+
+  return runInteractiveSequenceKnownFrame(inputPath);
 }
 
 async function runInteractiveCombine() {
@@ -426,6 +591,12 @@ async function runInteractiveSplit() {
     "--sepIndex",
     String(sepIndex),
   ]);
+
+  if (await confirmConvertSplitSequence()) {
+    const firstFramePath = path.join(splitInfo.outDir, `${answers.name}-01.png`);
+    await runInteractiveSequenceKnownFrame(firstFramePath);
+  }
+
   return true;
 }
 
@@ -438,74 +609,13 @@ async function runInteractivePriority() {
   }), "PNG base");
 
   const inferred = inferPriorityFromPng(inputPath);
-  const extraQuestions = [];
-
-  if (!inferred.maskPath) {
-    extraQuestions.push({
-      type: "input",
-      name: "maskPath",
-      message: "Não consegui inferir a máscara. Informe o PNG de máscara:",
-      validate: (value) => {
-        try {
-          validatePngFile(value, "Máscara PNG");
-          return true;
-        } catch (err) {
-          return err.message;
-        }
-      },
-    });
-  }
-
-  if (!validateOptionalFile(inferred.mapPath)) {
-    extraQuestions.push({
-      type: "input",
-      name: "mapPath",
-      message: "Não consegui inferir o MAP. Informe o arquivo MAP:",
-      validate: (value) => {
-        try {
-          validateMapFile(value, "MAP");
-          return true;
-        } catch (err) {
-          return err.message;
-        }
-      },
-    });
-  }
-
-  const extras = extraQuestions.length ? await inquirer.prompt(extraQuestions) : {};
-  const maskPath = inferred.maskPath ?? validatePngFile(extras.maskPath, "Máscara PNG");
-  const mapPath = validateOptionalFile(inferred.mapPath)
-    ? validateMapFile(inferred.mapPath, "MAP")
-    : validateMapFile(extras.mapPath, "MAP");
-
-  printSummary("Resumo da prioridade de BG", [
-    ["PNG base", inferred.pngPath],
-    ["Mask", maskPath],
-    ["MAP", mapPath],
-    ["Saída", inferred.outPath],
-  ]);
-
-  if (!(await confirmExecution())) return false;
-
-  runPriorityFlow({
+  return runInteractivePriorityKnownContext({
     pngPath: inferred.pngPath,
-    maskPath,
-    mapPath,
+    maskPath: inferred.maskPath,
+    mapPath: inferred.mapPath,
     outPath: inferred.outPath,
-    layout: "auto",
+    allowMapPrompt: true,
   });
-  printEquivalentCommand([
-    "konvert2snes",
-    "priority",
-    inferred.pngPath,
-    "--mask",
-    maskPath,
-    "--map",
-    mapPath,
-    "--out",
-    inferred.outPath,
-  ]);
-  return true;
 }
 
 function validateOptionalFile(filePath) {

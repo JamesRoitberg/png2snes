@@ -66,20 +66,6 @@ Adicione novos itens no topo desta secao.
 - proximo passo: criar planning
 - observacoes: BL-003 concluida; aguardar periodo de transicao antes de avaliar remocao do alias no `package.json`, limpeza da entrada legada em `bin/`, docs de compatibilidade e ajustes de mensagens/comandos que ainda mencionem `png2snes`.
 
-## [BL-007] Perguntar se deve aplicar prioridade apos conversao
-- problema: depois de converter um BG para SNES e exibir o resumo/diagnostico de VRAM, o usuario precisa voltar manualmente ao menu para aplicar prioridade de BG, mesmo quando esse e um proximo passo comum do fluxo.
-- prioridade: media
-- status: backlog
-- proximo passo: criar planning
-- observacoes: ideia inicial para, ao final do fluxo de conversao interativo, depois do resumo atual de VRAM, perguntar se o usuario quer rodar a opcao 5 do menu, `Aplicar prioridade de BG`; opcoes simples `sim` ou `nao`; se escolher `sim`, seguir para o fluxo de priority usando o BG recem-convertido como base quando for possivel inferir PNG/MAP/mascara. Avaliar impacto em `src/cli/menu.js`, `src/cli/toolRunner.js` e no retorno de caminhos gerados pela conversao, preservando o comportamento atual quando o usuario escolher `nao`.
-
-## [BL-006] Perguntar se deve converter frames apos split
-- problema: depois de splitar um cenario ou sheet em varios frames PNG, o usuario precisa iniciar manualmente a conversao de animacao por sequencia de frames, mesmo quando esse e o proximo passo natural do fluxo.
-- prioridade: media
-- status: backlog
-- proximo passo: criar planning
-- observacoes: ideia inicial para, ao final do fluxo de split interativo, perguntar se o usuario quer usar a opcao 2 do menu, `Converter animacao por sequencia de frames`; opcoes simples `sim` ou `nao`; se escolher `sim`, seguir para o fluxo de sequence usando um dos frames gerados como entrada. Avaliar impacto em `src/cli/menu.js` e `src/cli/toolRunner.js`, preservando o split atual e sem mudar sequence/conversao automaticamente sem confirmacao.
-
 ## [BL-004] Versionamento por Conventional Commits
 - problema: a versao atual do projeto nao segue automaticamente o tipo de mudanca entregue, o que dificulta manter um versionamento previsivel para releases pequenas, medias ou grandes.
 - prioridade: media
@@ -104,6 +90,20 @@ Mova para esta secao tarefas finalizadas, mantendo as tarefas em aberto separada
 - status: done
 - proximo passo: concluido
 - observacoes: planning criado em `docs/planning-cli-combine-convert-followup.md`; spec criada em `docs/spec-cli-combine-convert-followup.md`; menu interativo agora pergunta apos o combine se deve converter o PNG final usando opcoes `Sim`/`Não`, sem campo de texto livre. Validado que `Não` encerra sem converter, `Sim` abre o fluxo normal de conversao e cancelar a confirmacao da conversao preserva o combine concluido; subcomando direto `combine` continua sem pergunta extra.
+
+## [BL-006] Perguntar se deve converter frames apos split
+- problema: depois de splitar um cenario ou sheet em varios frames PNG, o usuario precisava iniciar manualmente a conversao de animacao por sequencia de frames, mesmo quando esse era o proximo passo natural do fluxo.
+- prioridade: media
+- status: done
+- proximo passo: concluido
+- observacoes: planning criado em `docs/planning-cli-split-sequence-followup.md`; spec criada em `docs/spec-cli-split-sequence-followup.md`; menu interativo agora pergunta apos o split se deve converter a sequencia usando opcoes `Sim`/`Não`, sem campo de texto livre. Se `Sim`, usa o primeiro frame gerado (`<nome>-01.png`) como entrada do fluxo normal de sequence. Validado que `Não` encerra sem converter, `Sim` abre preview/resumo de sequence e cancelar a confirmacao da sequence preserva o split concluido; subcomando direto `split` continua sem pergunta extra.
+
+## [BL-007] Perguntar se deve aplicar prioridade apos conversao
+- problema: depois de converter um BG para SNES e exibir o resumo/diagnostico de VRAM, o usuario precisava voltar manualmente ao menu para aplicar prioridade de BG, mesmo quando esse era um proximo passo comum do fluxo.
+- prioridade: media
+- status: done
+- proximo passo: concluido
+- observacoes: planning criado em `docs/planning-cli-convert-priority-followup.md`; spec criada em `docs/spec-cli-convert-priority-followup.md`; menu interativo agora pergunta apos conversao BG se deve aplicar prioridade usando opcoes `Sim`/`Não`, sem campo de texto livre. Se `Sim`, usa o PNG de entrada como base, o MAP gerado em `converted/<stem>.map`, procura mascara ao lado do PNG e em `converted/`, e pede a mascara manualmente se necessario. Validado que `Não` encerra sem prioridade, `Sim` gera `converted/<stem>-pri.map` com mascara inferida, mascara manual com cancelamento preserva a conversao, sprite nao pergunta prioridade e subcomando direto `convert` continua sem pergunta extra.
 
 ## [BL-003] Renomear projeto para konvert2snes e revisar versao inicial
 - problema: foi encontrada outra ferramenta com o nome `png2snes`, o que podia gerar conflito de identidade, documentacao e uso do comando.

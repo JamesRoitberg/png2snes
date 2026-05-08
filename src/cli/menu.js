@@ -254,18 +254,27 @@ async function selectCombineType() {
   return combineType;
 }
 
-async function runInteractiveConvert() {
-  const inputPath = validatePngFile(await selectPngFileFromDirectory({
-    suggestedDir: "to-convert",
-    suggestedLabel: "to-convert",
-    directoryMessage: "Escolha o diretório do PNG:",
-    fileMessage: "Escolha o arquivo PNG:",
-  }), "PNG");
+async function confirmConvertGeneratedPng() {
+  const { shouldConvert } = await inquirer.prompt({
+    type: "list",
+    name: "shouldConvert",
+    message: "Converter o PNG final agora?",
+    default: true,
+    choices: [
+      { name: "Sim", value: true },
+      { name: "Não", value: false },
+    ],
+  });
 
+  return shouldConvert;
+}
+
+async function runInteractiveConvertKnownInput(inputPath, label = "PNG") {
+  const resolvedInputPath = validatePngFile(inputPath, label);
   const options = await resolveConversionOptions({ interactive: true });
 
   printSummary("Resumo da conversão", [
-    ["Arquivo", inputPath],
+    ["Arquivo", resolvedInputPath],
     ["Tipo", options.tipo],
     ["BPP", options.bpp],
     ["Tile size", options.tileSize],
@@ -275,9 +284,20 @@ async function runInteractiveConvert() {
 
   if (!(await confirmExecution())) return false;
 
-  await runConvertFlow({ inputPath, options });
-  printEquivalentCommand(buildConversionCommand("convert", inputPath, options));
+  await runConvertFlow({ inputPath: resolvedInputPath, options });
+  printEquivalentCommand(buildConversionCommand("convert", resolvedInputPath, options));
   return true;
+}
+
+async function runInteractiveConvert() {
+  const inputPath = await selectPngFileFromDirectory({
+    suggestedDir: "to-convert",
+    suggestedLabel: "to-convert",
+    directoryMessage: "Escolha o diretório do PNG:",
+    fileMessage: "Escolha o arquivo PNG:",
+  });
+
+  return runInteractiveConvertKnownInput(inputPath, "PNG");
 }
 
 async function runInteractiveSequence() {
@@ -340,6 +360,11 @@ async function runInteractiveCombine() {
 
   runCombineFlow({ parts: combineInfo.parts, outPath: combineInfo.outPath, combineType });
   printEquivalentCommand(buildCombineCommand(inputPath, combineType));
+
+  if (await confirmConvertGeneratedPng()) {
+    await runInteractiveConvertKnownInput(combineInfo.outPath, "PNG final");
+  }
+
   return true;
 }
 

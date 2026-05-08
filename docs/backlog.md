@@ -80,13 +80,6 @@ Adicione novos itens no topo desta secao.
 - proximo passo: criar planning
 - observacoes: ideia inicial para, ao final do fluxo de split interativo, perguntar se o usuario quer usar a opcao 2 do menu, `Converter animacao por sequencia de frames`; opcoes simples `sim` ou `nao`; se escolher `sim`, seguir para o fluxo de sequence usando um dos frames gerados como entrada. Avaliar impacto em `src/cli/menu.js` e `src/cli/toolRunner.js`, preservando o split atual e sem mudar sequence/conversao automaticamente sem confirmacao.
 
-## [BL-005] Perguntar se deve converter PNG final apos combine
-- problema: depois de combinar partes em um PNG final, o usuario precisa iniciar manualmente a conversao para SNES em outro passo, mesmo quando o proximo fluxo natural e converter a imagem gerada.
-- prioridade: media
-- status: backlog
-- proximo passo: criar planning
-- observacoes: ideia inicial para, ao final do fluxo de combine interativo, perguntar se o usuario quer converter o PNG combinado para SNES; opcoes simples `sim` ou `nao`; se escolher `sim`, seguir para a opcao 1 do menu/fluxo de conversao usando o PNG final gerado como entrada. Avaliar impacto em `src/cli/menu.js` e `src/cli/toolRunner.js`, preservando o combine atual e sem acoplar convert 2bpp antes da proxima decisao.
-
 ## [BL-004] Versionamento por Conventional Commits
 - problema: a versao atual do projeto nao segue automaticamente o tipo de mudanca entregue, o que dificulta manter um versionamento previsivel para releases pequenas, medias ou grandes.
 - prioridade: media
@@ -104,6 +97,13 @@ Adicione novos itens no topo desta secao.
 ## Itens concluidos
 
 Mova para esta secao tarefas finalizadas, mantendo as tarefas em aberto separadas do que ja foi entregue.
+
+## [BL-005] Perguntar se deve converter PNG final apos combine
+- problema: depois de combinar partes em um PNG final, o usuario precisava iniciar manualmente a conversao para SNES em outro passo, mesmo quando o proximo fluxo natural era converter a imagem gerada.
+- prioridade: media
+- status: done
+- proximo passo: concluido
+- observacoes: planning criado em `docs/planning-cli-combine-convert-followup.md`; spec criada em `docs/spec-cli-combine-convert-followup.md`; menu interativo agora pergunta apos o combine se deve converter o PNG final usando opcoes `Sim`/`Não`, sem campo de texto livre. Validado que `Não` encerra sem converter, `Sim` abre o fluxo normal de conversao e cancelar a confirmacao da conversao preserva o combine concluido; subcomando direto `combine` continua sem pergunta extra.
 
 ## [BL-003] Renomear projeto para konvert2snes e revisar versao inicial
 - problema: foi encontrada outra ferramenta com o nome `png2snes`, o que podia gerar conflito de identidade, documentacao e uso do comando.

@@ -40,19 +40,19 @@ const HUB_COMMANDS = new Set([
 ]);
 
 function handleCliError(err) {
-  console.error("[png2snes] Erro:", err.message);
+  console.error("[konvert2snes] Erro:", err.message);
   process.exitCode = 1;
 }
 
 function printExamples() {
-  console.log("[png2snes] Exemplos:");
-  console.log("  png2snes convert to-convert/tomb-bg2-final.png");
-  console.log("  png2snes sequence to-convert/tomb-anim-01.png");
-  console.log("  png2snes combine to-convert/tomb-bg2-part1.png");
-  console.log("  png2snes split to-convert/tomb-anim-sheet.png --name tomb-anim --sepIndex 0");
-  console.log("  png2snes priority to-convert/converted/tomb-bg2-final.png");
-  console.log("  png2snes color ad1808");
-  console.log("  png2snes analyze-map to-convert/converted/tomb-bg2-final.map");
+  console.log("[konvert2snes] Exemplos:");
+  console.log("  konvert2snes convert to-convert/tomb-bg2-final.png");
+  console.log("  konvert2snes sequence to-convert/tomb-anim-01.png");
+  console.log("  konvert2snes combine to-convert/tomb-bg2-part1.png");
+  console.log("  konvert2snes split to-convert/tomb-anim-sheet.png --name tomb-anim --sepIndex 0");
+  console.log("  konvert2snes priority to-convert/converted/tomb-bg2-final.png");
+  console.log("  konvert2snes color ad1808");
+  console.log("  konvert2snes analyze-map to-convert/converted/tomb-bg2-final.map");
 }
 
 function addHubCommands(program) {
@@ -274,7 +274,7 @@ function addHubCommands(program) {
 function createHubProgram() {
   return addHubCommands(
     new Command()
-      .name("png2snes")
+      .name("konvert2snes")
       .description("Converte PNG em tiles, mapas e paletas no formato do SNES.")
       .showHelpAfterError(),
   );
@@ -283,7 +283,7 @@ function createHubProgram() {
 function createLegacyProgram() {
   const program = addConversionOptions(
     new Command()
-      .name("png2snes")
+      .name("konvert2snes")
       .description("Converte PNG em tiles, mapas e paletas no formato do SNES.")
       .showHelpAfterError()
       .argument("[imagem]", "arquivo PNG de entrada")
@@ -301,13 +301,13 @@ function createLegacyProgram() {
           stem: opts.stem,
         });
 
-        console.log(`[png2snes][sequence] Frames encontrados: ${sequenceInfo.frames.length}`);
+        console.log(`[konvert2snes][sequence] Frames encontrados: ${sequenceInfo.frames.length}`);
         sequenceInfo.frames.forEach((frame, index) => {
           console.log(`  ${String(index + 1).padStart(2, "0")}. ${frame.file}`);
         });
 
         for (const warning of sequenceInfo.warnings) {
-          console.warn(`[png2snes][sequence] WARN: ${warning}`);
+          console.warn(`[konvert2snes][sequence] WARN: ${warning}`);
         }
 
         const finalOpts = await resolveConversionOptions(opts);
@@ -335,7 +335,7 @@ function createLegacyProgram() {
 function createHelpProgram() {
   const program = addConversionOptions(
     new Command()
-      .name("png2snes")
+      .name("konvert2snes")
       .description("Converte PNG em tiles, mapas e paletas no formato do SNES.")
       .showHelpAfterError()
       .argument("[imagem]", "arquivo PNG de entrada")

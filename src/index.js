@@ -44,7 +44,7 @@ function runVramLayoutHelper({ bpp, bg1Chr, bg1Map, bg2Chr, bg2Map, strict }) {
     if (strict) {
       throw new Error("VRAM layout helper falhou (strict).");
     } else {
-      console.warn("[png2snes] WARN: VRAM layout helper não encontrou um layout válido (ignorei). Veja as mensagens acima.");
+      console.warn("[konvert2snes] WARN: VRAM layout helper não encontrou um layout válido (ignorei). Veja as mensagens acima.");
     }
   }
 }
@@ -276,7 +276,7 @@ export async function runPng2Snes(imagePath, options) {
   // exports permanecem
   const chrBuffer = writeChr(uniqueTiles, bpp);
   const palBuffer = skipPaletteOutputs ? null : writePal(palette);
-  const gplText = skipPaletteOutputs ? null : writeGpl(palette, `${baseName} (png2snes)`);
+  const gplText = skipPaletteOutputs ? null : writeGpl(palette, `${baseName} (konvert2snes)`);
 
   fs.writeFileSync(`${outBase}.chr`, chrBuffer);
   if (tilemap) {
@@ -304,7 +304,7 @@ export async function runPng2Snes(imagePath, options) {
     });
   }
 
-  console.log("[png2snes] OK:");
+  console.log("[konvert2snes] OK:");
   console.log("  OUT DIR:", outDir);
   console.log("  CHR:", `${outBase}.chr`);
   if (tilemap) {
@@ -331,7 +331,7 @@ export async function runPng2Snes(imagePath, options) {
     const otherBaseName = swapBgLayer(baseName);
 
     if (!layer || !otherBaseName) {
-      console.log("[png2snes] VRAM layout: pulei (nome não contém bg1/bg2).");
+      console.log("[konvert2snes] VRAM layout: pulei (nome não contém bg1/bg2).");
     } else {
       const thisChr = `${outBase}.chr`;
       const thisMap = `${outBase}.map`;
@@ -345,11 +345,11 @@ export async function runPng2Snes(imagePath, options) {
       // Só roda se o map atual for dos tamanhos esperados (evita quebrar casos gerais)
       const expectedThisMapSize = layer === "bg1" ? 0x2000 : 0x1000;
       if (!fs.existsSync(thisMap)) {
-        console.log("[png2snes] VRAM layout: pulei (MAP não existe).");
+        console.log("[konvert2snes] VRAM layout: pulei (MAP não existe).");
       } else {
         const thisMapSize = fs.statSync(thisMap).size;
         if (thisMapSize !== expectedThisMapSize) {
-          console.log(`[png2snes] VRAM layout: pulei (MAP size ${thisMapSize} não é o esperado ${expectedThisMapSize}).`);
+          console.log(`[konvert2snes] VRAM layout: pulei (MAP size ${thisMapSize} não é o esperado ${expectedThisMapSize}).`);
         } else {
           if (layer === "bg1") {
             runVramLayoutHelper({

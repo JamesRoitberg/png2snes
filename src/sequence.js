@@ -157,7 +157,7 @@ function safeUnlink(filePath) {
       fs.unlinkSync(filePath);
     }
   } catch (err) {
-    console.warn(`[png2snes][sequence] WARN: não consegui remover ${filePath}: ${err.message}`);
+    console.warn(`[konvert2snes][sequence] WARN: não consegui remover ${filePath}: ${err.message}`);
   }
 }
 
@@ -209,7 +209,7 @@ export async function runSequence({ sequenceInfo, options }) {
   const { frames, stem } = sequenceInfo;
   const inspected = [];
 
-  console.log(`[png2snes][sequence] Validando ${frames.length} frame(s)...`);
+  console.log(`[konvert2snes][sequence] Validando ${frames.length} frame(s)...`);
 
   for (const frame of frames) {
     let meta;
@@ -247,17 +247,17 @@ export async function runSequence({ sequenceInfo, options }) {
   fs.mkdirSync(outDir, { recursive: true });
 
   console.log(
-    `[png2snes][sequence] Validação OK. Dimensões: ${inspected[0].meta.width}x${inspected[0].meta.height}`
+    `[konvert2snes][sequence] Validação OK. Dimensões: ${inspected[0].meta.width}x${inspected[0].meta.height}`
   );
   console.log(
-    `[png2snes][sequence] Mantendo apenas ${stem}.pal e ${stem}.gpl no final da sequência.`
+    `[konvert2snes][sequence] Mantendo apenas ${stem}.pal e ${stem}.gpl no final da sequência.`
   );
-  console.log("[png2snes][sequence] Convertendo frames...");
+  console.log("[konvert2snes][sequence] Convertendo frames...");
 
   let convertedCount = 0;
 
   for (const { frame } of inspected) {
-    console.log(`[png2snes][sequence] Frame: ${frame.file}`);
+    console.log(`[konvert2snes][sequence] Frame: ${frame.file}`);
 
     try {
       await runPng2Snes(frame.path, {
@@ -281,9 +281,9 @@ export async function runSequence({ sequenceInfo, options }) {
   const gplPath = path.join(outDir, `${stem}.gpl`);
 
   fs.writeFileSync(palPath, writePal(sharedPalette));
-  fs.writeFileSync(gplPath, writeGpl(sharedPalette, `${stem} (png2snes sequence)`), "utf-8");
+  fs.writeFileSync(gplPath, writeGpl(sharedPalette, `${stem} (konvert2snes sequence)`), "utf-8");
 
-  console.log("[png2snes][sequence] OK:");
+  console.log("[konvert2snes][sequence] OK:");
   console.log("  OUT DIR:", outDir);
   console.log("  FRAMES:", convertedCount);
   console.log("  PAL:", palPath);

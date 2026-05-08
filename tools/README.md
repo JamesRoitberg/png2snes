@@ -1,4 +1,4 @@
-# Tools (png2snes)
+# Tools (konvert2snes)
 
 Scripts auxiliares para o workflow de assets SNES.
 

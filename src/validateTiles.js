@@ -78,11 +78,11 @@ export function validateTiles({
   console.warn("");
   if (bpp === 4) {
     console.warn(
-      "[png2snes][BG] Atenção: existem tiles 8×8 que usam cores de mais de uma sub-paleta."
+      "[konvert2snes][BG] Atenção: existem tiles 8×8 que usam cores de mais de uma sub-paleta."
     );
   } else {
     console.warn(
-      "[png2snes][BG 2bpp] Atenção: existem tiles 8×8 que usam cores de mais de uma mini-sub-paleta."
+      "[konvert2snes][BG 2bpp] Atenção: existem tiles 8×8 que usam cores de mais de uma mini-sub-paleta."
     );
   }
   console.warn(`O SNES só permite uma sub-paleta de ${colorsPerSub} cores por tile de BG.`);

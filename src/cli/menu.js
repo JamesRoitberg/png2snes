@@ -31,7 +31,7 @@ import {
 const OTHER_DIRECTORY_VALUE = "__other_directory__";
 
 function buildConversionCommand(command, inputPath, options) {
-  const args = ["png2snes", command, inputPath];
+  const args = ["konvert2snes", command, inputPath];
 
   args.push("--tipo", options.tipo);
   args.push("--bpp", String(options.bpp));
@@ -70,7 +70,7 @@ function buildConversionCommand(command, inputPath, options) {
 }
 
 function buildCombineCommand(inputPath, combineType) {
-  const args = ["png2snes", "combine", inputPath];
+  const args = ["konvert2snes", "combine", inputPath];
   if (combineType !== DEFAULT_COMBINE_TYPE) {
     args.push("--combine-type", combineType);
   }
@@ -78,14 +78,14 @@ function buildCombineCommand(inputPath, combineType) {
 }
 
 function printExamples() {
-  console.log("[png2snes] Exemplos:");
-  console.log("  png2snes convert to-convert/tomb-bg2-final.png");
-  console.log("  png2snes sequence to-convert/tomb-anim-01.png");
-  console.log("  png2snes combine to-convert/tomb-bg2-part1.png");
-  console.log("  png2snes split to-convert/tomb-anim-sheet.png --name tomb-anim --sepIndex 0");
-  console.log("  png2snes priority to-convert/converted/tomb-bg2-final.png");
-  console.log("  png2snes color ad1808");
-  console.log("  png2snes analyze-map to-convert/converted/tomb-bg2-final.map");
+  console.log("[konvert2snes] Exemplos:");
+  console.log("  konvert2snes convert to-convert/tomb-bg2-final.png");
+  console.log("  konvert2snes sequence to-convert/tomb-anim-01.png");
+  console.log("  konvert2snes combine to-convert/tomb-bg2-part1.png");
+  console.log("  konvert2snes split to-convert/tomb-anim-sheet.png --name tomb-anim --sepIndex 0");
+  console.log("  konvert2snes priority to-convert/converted/tomb-bg2-final.png");
+  console.log("  konvert2snes color ad1808");
+  console.log("  konvert2snes analyze-map to-convert/converted/tomb-bg2-final.map");
 }
 
 async function confirmExecution() {
@@ -393,7 +393,7 @@ async function runInteractiveSplit() {
     sepIndex,
   });
   printEquivalentCommand([
-    "png2snes",
+    "konvert2snes",
     "split",
     splitInfo.pngPath,
     "--name",
@@ -470,7 +470,7 @@ async function runInteractivePriority() {
     layout: "auto",
   });
   printEquivalentCommand([
-    "png2snes",
+    "konvert2snes",
     "priority",
     inferred.pngPath,
     "--mask",
@@ -514,7 +514,7 @@ async function runInteractiveColor() {
   if (!(await confirmExecution())) return false;
 
   runColorFlow({ hex: normalizedHex });
-  printEquivalentCommand(["png2snes", "color", normalizedHex]);
+  printEquivalentCommand(["konvert2snes", "color", normalizedHex]);
   return true;
 }
 
@@ -539,7 +539,7 @@ async function runInteractiveAnalyzeMap() {
   if (!(await confirmExecution())) return false;
 
   runAnalyzeMapFlow({ mapPath });
-  printEquivalentCommand(["png2snes", "analyze-map", mapPath]);
+  printEquivalentCommand(["konvert2snes", "analyze-map", mapPath]);
   return true;
 }
 
@@ -580,7 +580,7 @@ export async function openMainMenu() {
       if (action === "color" && await runInteractiveColor()) return;
       if (action === "analyze-map" && await runInteractiveAnalyzeMap()) return;
     } catch (err) {
-      console.error("[png2snes] Erro:", err.message);
+      console.error("[konvert2snes] Erro:", err.message);
     }
   }
 }

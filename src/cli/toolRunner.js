@@ -64,7 +64,7 @@ function runNodeScript(scriptPath, args) {
 }
 
 export function printSummary(title, entries) {
-  console.log(`[png2snes] ${title}`);
+  console.log(`[konvert2snes] ${title}`);
   for (const [label, value] of entries) {
     printKeyValue(label, value);
   }
@@ -73,18 +73,18 @@ export function printSummary(title, entries) {
 export function printPreview(title, files, warnings = []) {
   if (!files.length) return;
 
-  console.log(`[png2snes] ${title}`);
+  console.log(`[konvert2snes] ${title}`);
   files.forEach((file, index) => {
     console.log(`  ${String(index + 1).padStart(2, "0")}. ${file}`);
   });
 
   warnings.forEach((warning) => {
-    console.warn(`[png2snes] WARN: ${warning}`);
+    console.warn(`[konvert2snes] WARN: ${warning}`);
   });
 }
 
 export function printEquivalentCommand(args) {
-  console.log("[png2snes] Comando equivalente:");
+  console.log("[konvert2snes] Comando equivalente:");
   console.log(`  ${args.map(quoteArg).join(" ")}`);
 }
 

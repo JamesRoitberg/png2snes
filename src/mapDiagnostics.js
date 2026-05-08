@@ -39,7 +39,7 @@ export function analyzeMapBuffer(mapBuf, chrTiles = null) {
     if (vflip) vflipCount++;
   }
 
-  console.log("[png2snes] MAP DIAG:");
+  console.log("[konvert2snes] MAP DIAG:");
   console.log("  words:", words);
   console.log("  maxTileIndex:", maxTileIndex);
   if (typeof chrTiles === "number") {

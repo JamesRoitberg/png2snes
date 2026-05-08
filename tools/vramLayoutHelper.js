@@ -431,7 +431,7 @@ function main() {
   // Output
   console.log("");
   console.log("// -----------------------------------------------------------------------------");
-  console.log("// VRAM layout (png2snes helper) — pronto para copiar/colar");
+  console.log("// VRAM layout (konvert2snes helper) — pronto para copiar/colar");
   console.log("// -----------------------------------------------------------------------------");
   if (layoutMode === "fallback") {
     console.log("// Layout alternativo automático: o padrão do projeto não coube.");

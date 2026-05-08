@@ -1,4 +1,4 @@
-# png2snes
+# konvert2snes
 
 CLI para transformar PNGs indexados em assets prontos para SNES.
 
@@ -6,7 +6,7 @@ English version: [README.en.md](README.en.md)
 
 ## O que a ferramenta faz
 
-O `png2snes` converte imagens indexadas em arquivos usados no fluxo de BG e sprites no SNES:
+O `konvert2snes` converte imagens indexadas em arquivos usados no fluxo de BG e sprites no SNES:
 
 - `.chr` com tiles em formato SNES
 - `.map` para cenários e backgrounds
@@ -25,7 +25,7 @@ Além da conversão principal, ele também centraliza algumas tasks comuns do pi
 
 ## Quando usar
 
-Use o `png2snes` quando você precisa:
+Use o `konvert2snes` quando você precisa:
 
 - converter um PNG indexado de cenário ou sprite
 - gerar assets de uma animação quadro a quadro
@@ -42,10 +42,10 @@ npm install
 Para testar localmente dentro do repositório:
 
 ```bash
-node bin/png2snes.js
+node bin/konvert2snes.js
 ```
 
-Para usar `png2snes` direto no shell:
+Para usar `konvert2snes` direto no shell:
 
 ```bash
 npm link
@@ -56,7 +56,7 @@ npm link
 Sem argumentos, o CLI abre um menu interativo:
 
 ```bash
-node bin/png2snes.js
+node bin/konvert2snes.js
 ```
 
 Esse modo é o caminho mais simples para uso manual. Ele pede entradas naturais, como:
@@ -80,49 +80,49 @@ Quando possível, o CLI tenta inferir automaticamente:
 ### Converter PNG para SNES
 
 ```bash
-png2snes convert to-convert/tomb-bg2-final.png
+konvert2snes convert to-convert/tomb-bg2-final.png
 ```
 
 ### Converter sequência de frames
 
 ```bash
-png2snes sequence to-convert/tomb-anim-01.png
+konvert2snes sequence to-convert/tomb-anim-01.png
 ```
 
 ### Combinar partes de cenário
 
 ```bash
-png2snes combine to-convert/tomb-bg2-part1.png
+konvert2snes combine to-convert/tomb-bg2-part1.png
 ```
 
 ### Splitar PNG em vários frames
 
 ```bash
-png2snes split to-convert/tomb-anim-sheet.png --name tomb-anim --sepIndex 0
+konvert2snes split to-convert/tomb-anim-sheet.png --name tomb-anim --sepIndex 0
 ```
 
 ### Aplicar prioridade de BG
 
 ```bash
-png2snes priority to-convert/converted/tomb-bg2-final.png
+konvert2snes priority to-convert/converted/tomb-bg2-final.png
 ```
 
 ### Converter cor para SNES
 
 ```bash
-png2snes color ad1808
+konvert2snes color ad1808
 ```
 
 ### Analisar MAP
 
 ```bash
-png2snes analyze-map to-convert/converted/tomb-bg2-final.map
+konvert2snes analyze-map to-convert/converted/tomb-bg2-final.map
 ```
 
 ### Ver exemplos
 
 ```bash
-png2snes examples
+konvert2snes examples
 ```
 
 ## Fluxo interativo
@@ -169,7 +169,7 @@ Essas opções valem para `convert`, `sequence` e para o fluxo legado:
 
 ## Compatibilidade
 
-Os comandos antigos continuam funcionando:
+O comando legado `png2snes` continua funcionando temporariamente como alias de compatibilidade:
 
 ```bash
 png2snes to-convert/tomb-bg2-final.png
@@ -201,7 +201,8 @@ npm run color2snes -- ad1808
 
 ## Estrutura
 
-- `bin/png2snes.js`: entrada principal do CLI
+- `bin/konvert2snes.js`: entrada principal do CLI
+- `bin/png2snes.js`: entrada legada mantida como alias temporário
 - `src/`: core de conversão e orquestração
 - `tools/`: tools auxiliares legadas
 - `scripts/`: scripts auxiliares simples

@@ -64,7 +64,7 @@ Adicione novos itens no topo desta secao.
 - prioridade: baixa
 - status: backlog
 - proximo passo: criar planning
-- observacoes: depende da conclusao da BL-003 e de um periodo de transicao; avaliar remocao do alias no `package.json`, possivel renome do arquivo em `bin/`, limpeza de docs de compatibilidade e ajustes de mensagens/comandos que ainda mencionem `png2snes`.
+- observacoes: BL-003 concluida; aguardar periodo de transicao antes de avaliar remocao do alias no `package.json`, limpeza da entrada legada em `bin/`, docs de compatibilidade e ajustes de mensagens/comandos que ainda mencionem `png2snes`.
 
 ## [BL-007] Perguntar se deve aplicar prioridade apos conversao
 - problema: depois de converter um BG para SNES e exibir o resumo/diagnostico de VRAM, o usuario precisa voltar manualmente ao menu para aplicar prioridade de BG, mesmo quando esse e um proximo passo comum do fluxo.
@@ -94,13 +94,6 @@ Adicione novos itens no topo desta secao.
 - proximo passo: criar planning
 - observacoes: avaliar uso de versionamento semantico guiado por Conventional Commits, por exemplo `fix` para incrementar patch, `feat` para incrementar minor e mudancas grandes ou breaking changes para incrementar major; decidir se isso deve ser automatizado por script/tool ou se deve ficar como fluxo assistido pelo agente.
 
-## [BL-003] Renomear projeto para konvert2snes e revisar versao inicial
-- problema: foi encontrada outra ferramenta com o nome `png2snes`, o que pode gerar conflito de identidade, documentacao e uso do comando.
-- prioridade: alta
-- status: aprovado
-- proximo passo: implementar
-- observacoes: planning criado em `docs/planning-rename-konvert2snes.md`; spec criada em `docs/spec-rename-konvert2snes.md`; decisao aprovada e seguir com a Opcao B, renomeando a identidade principal para `konvert2snes`, revisando a versao para `1.0.0` e mantendo `png2snes` como alias legado temporario. A remocao futura do legado foi registrada na BL-009.
-
 ## [BL-002] Suporte inicial a interface em ingles
 - problema: o CLI hoje funciona em portugues e nao oferece uma opcao de uso em ingles.
 - prioridade: media
@@ -111,6 +104,13 @@ Adicione novos itens no topo desta secao.
 ## Itens concluidos
 
 Mova para esta secao tarefas finalizadas, mantendo as tarefas em aberto separadas do que ja foi entregue.
+
+## [BL-003] Renomear projeto para konvert2snes e revisar versao inicial
+- problema: foi encontrada outra ferramenta com o nome `png2snes`, o que podia gerar conflito de identidade, documentacao e uso do comando.
+- prioridade: alta
+- status: done
+- proximo passo: concluido
+- observacoes: identidade principal renomeada para `konvert2snes`, versao revisada para `1.0.0`, binario principal criado, alias legado `png2snes` mantido temporariamente e docs/logs principais atualizados. Validado com metadata npm, help, examples e smoke test de `color`.
 
 ## [BL-010] Corrigir BG3 2bpp usando subpaleta errada
 - problema: ao converter o BG3 do temple para SNES em `2 bpp`, o indice/subpaleta escolhido no CLI nao estava sendo respeitado no resultado da ROM; caso observado: usuario escolheu usar o indice/base `1` da paleta, mas o resultado aparente no SNES estava usando `2`, quebrando as cores.

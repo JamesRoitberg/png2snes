@@ -59,6 +59,20 @@ Nao use este arquivo para:
 
 Adicione novos itens no topo desta secao.
 
+## [BL-013] Integrar konvert2snes com Kombat Core/Kreator
+- problema: assets finais gerados em `converted/` e valores de layout de VRAM BG1/BG2 ainda precisam ser copiados manualmente para o cenario/config alvo no Kombat Core/Kreator, o que pode gerar erro humano quando o pipeline estiver mais maduro.
+- prioridade: media
+- status: analisando
+- proximo passo: aprovar direcao do planning
+- observacoes: planning criado em `docs/planning-kombat-core-kreator-integration.md`. Ideia inicial: dividir em duas tarefas/specs futuras, uma para levar valores de VRAM ao config do cenario e outra para copiar assets finais. Na copia de assets, copiar somente `.chr`, `.pal` e um `.map`; se existir `-pri.map`, usar ele no lugar do `.map` normal. Preferir manifesto/export ou dry-run antes de qualquer escrita direta em projeto externo.
+
+## [BL-012] Distribuicao por ZIP para usuarios sem Node
+- problema: quando a ferramenta estiver pronta ou muito proxima disso, usuarios leigos de Node podem ter dificuldade para instalar dependencias e rodar comandos no terminal.
+- prioridade: baixa
+- status: backlog
+- proximo passo: criar planning
+- observacoes: avaliar uma forma de distribuir um ZIP no Git/GitHub para Windows e Linux que permita abrir a ferramenta com duplo clique, sem exigir que o usuario instale Node ou rode comandos manualmente. No planning, comparar alternativas como executavel empacotado, scripts/atalhos por plataforma, artefatos de release em vez de binarios versionados no repo, e comportamento esperado ao abrir por duplo clique sem fechar a janela imediatamente.
+
 ## [BL-009] Remover alias legado png2snes
 - problema: apos o rename para `konvert2snes`, o alias legado `png2snes` deve continuar temporariamente por compatibilidade, mas a meta futura e remover codigo, referencias e comandos antigos para evitar duplicidade permanente.
 - prioridade: baixa

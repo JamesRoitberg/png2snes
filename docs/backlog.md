@@ -59,13 +59,6 @@ Nao use este arquivo para:
 
 Adicione novos itens no topo desta secao.
 
-## [BL-011] Mudar default interativo de dedupe para horizontal
-- problema: no fluxo interativo de conversao BG, a pergunta "Deduplicação de tiles" hoje vem com `Simples (idênticos)` como opcao padrao, mas o uso mais comum agora e escolher manualmente `Horizontal (flip X)`.
-- prioridade: media
-- status: backlog
-- proximo passo: criar spec
-- observacoes: contexto observado em `src/cli/conversionOptions.js`, onde o prompt interativo usa `default: "simple"` e a opcao `Horizontal (flip X)` usa valor `h`. Intencao inicial: melhorar a usabilidade do prompt sem mudar comportamento de comandos nao interativos ou flags explicitas sem confirmar.
-
 ## [BL-009] Remover alias legado png2snes
 - problema: apos o rename para `konvert2snes`, o alias legado `png2snes` deve continuar temporariamente por compatibilidade, mas a meta futura e remover codigo, referencias e comandos antigos para evitar duplicidade permanente.
 - prioridade: baixa
@@ -90,6 +83,13 @@ Adicione novos itens no topo desta secao.
 ## Itens concluidos
 
 Mova para esta secao tarefas finalizadas, mantendo as tarefas em aberto separadas do que ja foi entregue.
+
+## [BL-011] Mudar default interativo de dedupe para horizontal
+- problema: no fluxo interativo de conversao BG, a pergunta "Deduplicação de tiles" vinha com `Simples (idênticos)` como opcao padrao, mas o uso mais comum agora e escolher manualmente `Horizontal (flip X)`.
+- prioridade: media
+- status: done
+- proximo passo: concluido
+- observacoes: spec criada em `docs/spec-cli-dedupe-horizontal-default.md`; implementado em `src/cli/conversionOptions.js` trocando somente o default interativo do prompt de BG para `h`. Validado que o prompt resolve `dedupe=h`, `--dedupe simple` explicito continua `simple`, modo `--no-interactive` sem `--dedupe` continua no fallback `simple`, sprite continua `dedupe=none`, `node --check src/cli/conversionOptions.js` passa e o fluxo real foi validado pelo usuario.
 
 ## [BL-005] Perguntar se deve converter PNG final apos combine
 - problema: depois de combinar partes em um PNG final, o usuario precisava iniciar manualmente a conversao para SNES em outro passo, mesmo quando o proximo fluxo natural era converter a imagem gerada.

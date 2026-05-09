@@ -106,7 +106,7 @@ export async function resolveConversionOptions(opts) {
       type: "list",
       name: "dedupe",
       message: "Deduplicação de tiles:",
-      default: "simple",
+      default: "h",
       choices: [
         { name: "Nenhuma", value: "none" },
         { name: "Simples (idênticos)", value: "simple" },

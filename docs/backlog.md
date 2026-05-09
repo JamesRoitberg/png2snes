@@ -59,6 +59,27 @@ Nao use este arquivo para:
 
 Adicione novos itens no topo desta secao.
 
+## [BL-016] Avaliar suporte a BG Mode 7
+- problema: o CLI expõe `--modo 7`, mas ainda nao esta claro o que o `konvert2snes` precisa para gerar assets corretos para BG Mode 7 do SNES.
+- prioridade: baixa
+- status: backlog
+- proximo passo: criar planning
+- observacoes: tarefa futura para estudar regras reais de BG Mode 7 antes de implementar. Investigar formatos esperados de CHR/tile data, map/tilemap, paleta, tamanho e organizacao da arte, limites de cores/indices, como a arte deve ser preparada, e quais diferencas existem em relacao aos fluxos atuais de BG 2bpp/4bpp/8bpp. Nao assumir que o pipeline atual de `.chr`, `.map` e `.pal` serve para Mode 7 sem validacao.
+
+## [BL-015] Padding configuravel no fim da CGRAM para BG Mode 3 8bpp
+- problema: depois que o BG Mode 3 8bpp estiver validado, pode ser util reservar cores no fim da CGRAM com padding preto para permitir que o jogo carregue outras cores dinamicas depois, como personagens selecionados ou textos.
+- prioridade: media
+- status: aguardando
+- proximo passo: manter no backlog ate concluir BL-014; depois criar planning
+- observacoes: depende de BL-014 validar que `.chr`, `.pal` e `.map` 8bpp estao corretos para BG Mode 3. Ideia inicial: somente para BG Mode 3 8bpp, se a imagem indexada usar menos de 256 cores, oferecer uma opcao configuravel para preencher as cores restantes sempre no fim da CGRAM. Exemplo: imagem com 128 cores deixa 128 entradas finais preenchidas com preto, equivalendo a 8 subpaletas finais de 16 cores. O numero de subpaletas/cores reservadas deve ser configuravel, mas sempre aplicado no fim da CGRAM. Caso a imagem use 256 cores, nao ha espaco para padding e o asset deve ser gerado sem essa opcao.
+
+## [BL-014] Validar BG Mode 3 8bpp
+- problema: ainda nao foi confirmado de verdade se a conversao de BG 8bpp para uso em Mode 3 do SNES gera `.chr`, `.pal` e `.map` corretos.
+- prioridade: media
+- status: backlog
+- proximo passo: criar planning de validacao
+- observacoes: contexto observado: o CLI aceita `--modo 1|3|7` e `--bpp 8`; `src/map.js` comenta que em 8bpp os bits 10..12 de paleta do tilemap ficam zerados; `src/palette.js` evita filtrar cores em 8bpp para preservar indices absolutos. Falta validar com um BG Mode 3 real, conferindo tamanho/formatos dos assets, resultado em ROM/emulador, paleta de ate 256 cores e compatibilidade com o pipeline atual antes de criar qualquer nova opcao dependente disso.
+
 ## [BL-013] Integrar konvert2snes com Kombat Core/Kreator
 - problema: assets finais gerados em `converted/` e valores de layout de VRAM BG1/BG2 ainda precisam ser copiados manualmente para o cenario/config alvo no Kombat Core/Kreator, o que pode gerar erro humano quando o pipeline estiver mais maduro.
 - prioridade: media

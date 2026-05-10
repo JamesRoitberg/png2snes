@@ -27,6 +27,7 @@ import {
   runSequenceFlow,
   runSplitFlow,
 } from "./toolRunner.js";
+import { printKonvert2SnesIdentity } from "./identity.js";
 
 const OTHER_DIRECTORY_VALUE = "__other_directory__";
 
@@ -699,6 +700,8 @@ async function runInteractiveAnalyzeMap() {
 }
 
 export async function openMainMenu() {
+  printKonvert2SnesIdentity();
+
   while (true) {
     const { action } = await inquirer.prompt({
       type: "list",

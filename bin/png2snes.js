@@ -27,6 +27,7 @@ import {
   runSequenceFlow,
   runSplitFlow,
 } from "../src/cli/toolRunner.js";
+import { printKonvert2SnesIdentity } from "../src/cli/identity.js";
 
 const HUB_COMMANDS = new Set([
   "convert",
@@ -265,6 +266,7 @@ function addHubCommands(program) {
     .command("examples")
     .description("Mostra exemplos de comandos do novo hub principal.")
     .action(() => {
+      printKonvert2SnesIdentity();
       printExamples();
     });
 
@@ -354,6 +356,7 @@ try {
     const firstArg = process.argv[2];
 
     if (firstArg === "-h" || firstArg === "--help" || firstArg === "help") {
+      printKonvert2SnesIdentity();
       createHelpProgram().outputHelp();
     } else if (HUB_COMMANDS.has(firstArg)) {
       await createHubProgram().parseAsync(process.argv);

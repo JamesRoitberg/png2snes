@@ -119,6 +119,13 @@ Adicione novos itens no topo desta secao.
 
 Mova para esta secao tarefas finalizadas, mantendo as tarefas em aberto separadas do que ja foi entregue.
 
+## [BL-017] Identidade visual textual para os CLIs
+- problema: os CLIs ainda nao tinham uma assinatura visual propria no terminal, como um logo/banner textual legivel que ajudasse a dar identidade para as ferramentas.
+- prioridade: baixa
+- status: done
+- proximo passo: concluido
+- observacoes: planning criado em `docs/planning-cli-textual-identity.md`; spec criada em `docs/spec-cli-textual-identity.md`; implementado banner ASCII compacto em `src/cli/identity.js`, exibido no menu interativo, help principal e comando `examples`. Usa 3 cores ANSI simples quando permitido (`Konvert` claro, `2` vermelho e `SNES`/assinatura em cinza), respeita `NO_COLOR`/stdout nao TTY e nao aparece em conversoes diretas. Validado com `node --check`, help, examples, alias legado, menu interativo com e sem `NO_COLOR`, e smoke test de conversao direta com PNG indexado temporario em `/tmp`.
+
 ## [BL-011] Mudar default interativo de dedupe para horizontal
 - problema: no fluxo interativo de conversao BG, a pergunta "Deduplicação de tiles" vinha com `Simples (idênticos)` como opcao padrao, mas o uso mais comum agora e escolher manualmente `Horizontal (flip X)`.
 - prioridade: media

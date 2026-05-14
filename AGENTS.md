@@ -5,6 +5,12 @@ O `png2snes` é um CLI para converter PNGs indexados em assets prontos para SNES
 
 O projeto já funciona bem. A prioridade é preservar o que está estável e implementar melhorias ou correções com o menor risco possível.
 
+## Glossário e linguagem do projeto
+
+O `CONTEXT.md` é o glossário vivo curto do projeto. Consulte esse arquivo quando houver dúvida sobre termos como `png2snes`, `konvert2snes`, PNG indexado, palette, subpalette, CHR, MAP, PAL, tilemap, 2bpp, 4bpp, dedupe, flip, bg-priority, color2snes e vramLayoutHelper.
+
+O `CONTEXT.md` não substitui este `AGENTS.md`, o `README`, specs, docs existentes nem documentação técnica detalhada.
+
 ---
 
 ## Regra principal

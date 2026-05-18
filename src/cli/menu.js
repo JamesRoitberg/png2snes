@@ -154,10 +154,18 @@ function filterPngFiles(pngFiles, rawFilter) {
   return pngFiles.filter((file) => file.file.toLowerCase().startsWith(normalizedFilter));
 }
 
-function describeSuggestedDirectory(dirPath) {
+function applyPngFileSelector(pngFiles, includePngFile) {
+  if (!includePngFile) {
+    return pngFiles;
+  }
+
+  return pngFiles.filter(includePngFile);
+}
+
+function describeSuggestedDirectory(dirPath, includePngFile = null) {
   try {
     const resolved = validateDirectoryPath(dirPath, "Diretório sugerido");
-    const pngFiles = listPngFiles(resolved);
+    const pngFiles = applyPngFileSelector(listPngFiles(resolved), includePngFile);
 
     return {
       dirPath: resolved,
@@ -178,8 +186,9 @@ async function selectPngFileFromDirectory({
   suggestedLabel,
   directoryMessage = "Escolha o diretório:",
   fileMessage = "Escolha o arquivo PNG:",
+  includePngFile = null,
 }) {
-  const suggested = describeSuggestedDirectory(suggestedDir);
+  const suggested = describeSuggestedDirectory(suggestedDir, includePngFile);
   const { selectedDir } = await inquirer.prompt({
     type: "list",
     name: "selectedDir",
@@ -216,7 +225,9 @@ async function selectPngFileFromDirectory({
     dirPath = validateDirectoryPath(customDir);
   }
 
-  const pngFiles = selectedDir === suggested.dirPath ? suggested.pngFiles : listPngFiles(dirPath);
+  const pngFiles = selectedDir === suggested.dirPath
+    ? suggested.pngFiles
+    : applyPngFileSelector(listPngFiles(dirPath), includePngFile);
   if (!pngFiles.length) {
     throw new Error(`Nenhum arquivo .png encontrado em ${dirPath}.`);
   }
@@ -360,6 +371,47 @@ function findPriorityMaskForConvertedBg(inputPath, convertedDir) {
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
+function getPngFileStem(pngFile) {
+  const fileName = typeof pngFile === "string" ? path.basename(pngFile) : pngFile.file;
+  return path.basename(fileName, path.extname(fileName)).toLowerCase();
+}
+
+function isRegularInputPngCandidate(pngFile) {
+  const stem = getPngFileStem(pngFile);
+
+  return !/(?:[-_](?:pri|prio|priority|tileset))$/.test(stem);
+}
+
+function isCombinePartPngCandidate(pngFile) {
+  return /(?:[-_]?part)\d+$/.test(getPngFileStem(pngFile));
+}
+
+function isSequenceFramePngCandidate(pngFile) {
+  return /(?:[-_]?\d+)$/.test(getPngFileStem(pngFile));
+}
+
+function getDeferredPriorityContext(inputPath) {
+  const pngPath = validatePngFile(inputPath, "PNG base");
+  const inferred = inferPriorityFromPng(pngPath);
+  const inputDir = path.dirname(pngPath);
+  const stem = path.basename(pngPath, path.extname(pngPath));
+  const convertedDir = path.basename(inputDir).toLowerCase() === "converted"
+    ? inputDir
+    : path.join(inputDir, "converted");
+  const convertedMapPath = path.join(convertedDir, `${stem}.map`);
+  const mapPath = validateOptionalFile(convertedMapPath) ? convertedMapPath : inferred.mapPath;
+  const outPath = path.basename(inputDir).toLowerCase() === "converted"
+    ? inferred.outPath
+    : path.join(convertedDir, `${stem}-pri.map`);
+
+  return {
+    pngPath,
+    maskPath: findPriorityMaskForConvertedBg(pngPath, convertedDir) ?? inferred.maskPath,
+    mapPath,
+    outPath,
+  };
+}
+
 async function promptPriorityMask() {
   const { maskPath } = await inquirer.prompt({
     type: "input",
@@ -476,6 +528,7 @@ async function runInteractiveConvert() {
     suggestedLabel: "to-convert",
     directoryMessage: "Escolha o diretório do PNG:",
     fileMessage: "Escolha o arquivo PNG:",
+    includePngFile: isRegularInputPngCandidate,
   });
 
   return runInteractiveConvertKnownInput(inputPath, "PNG");
@@ -513,6 +566,7 @@ async function runInteractiveSequence() {
     suggestedLabel: "to-convert",
     directoryMessage: "Escolha o diretório dos frames:",
     fileMessage: "Escolha um frame da animação:",
+    includePngFile: isSequenceFramePngCandidate,
   });
 
   return runInteractiveSequenceKnownFrame(inputPath);
@@ -525,6 +579,7 @@ async function runInteractiveCombine() {
     suggestedLabel: "to-convert",
     directoryMessage: "Escolha o diretório das partes:",
     fileMessage: "Escolha um dos arquivos da sequência de partes:",
+    includePngFile: isCombinePartPngCandidate,
   }), "Parte PNG");
 
   const combineInfo = inferCombineFromPart(inputPath);
@@ -560,6 +615,7 @@ async function runInteractiveSplit() {
     suggestedLabel: "to-convert",
     directoryMessage: "Escolha o diretório do PNG:",
     fileMessage: "Escolha o PNG a ser splitado:",
+    includePngFile: isRegularInputPngCandidate,
   }), "PNG de entrada");
 
   const splitInfo = getSuggestedSplitName(inputPath);
@@ -623,13 +679,14 @@ async function runInteractiveSplit() {
 
 async function runInteractivePriority() {
   const inputPath = validatePngFile(await selectPngFileFromDirectory({
-    suggestedDir: "to-convert/converted",
-    suggestedLabel: "to-convert/converted",
+    suggestedDir: "to-convert",
+    suggestedLabel: "to-convert",
     directoryMessage: "Escolha o diretório do PNG base:",
     fileMessage: "Escolha o PNG base do cenário:",
+    includePngFile: isRegularInputPngCandidate,
   }), "PNG base");
 
-  const inferred = inferPriorityFromPng(inputPath);
+  const inferred = getDeferredPriorityContext(inputPath);
   return runInteractivePriorityKnownContext({
     pngPath: inferred.pngPath,
     maskPath: inferred.maskPath,
